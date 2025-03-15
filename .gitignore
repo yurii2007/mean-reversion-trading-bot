@@ -8,3 +8,8 @@ test-ledger
 .env
 Cargo.lock
 dev-flow/
+logs/
+
+# Added by cargo
+
+/target
