@@ -25,7 +25,7 @@ pub fn init_logger() {
         .with_thread_names(true)
         .with_timer(UtcTime::rfc_3339())
         .with_level(true)
-        .with_filter(EnvFilter::new("solana_bot=INFO"));
+        .with_filter(EnvFilter::new("mean-reversion-trading-bot=INFO"));
 
     let error_log_file = get_error_log_file();
 

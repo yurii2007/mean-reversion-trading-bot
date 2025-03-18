@@ -1,23 +1,29 @@
 use std::borrow::Cow;
 
 use binance_spot_connector_rust::{
-    http::{ request::RequestBuilder, Method },
-    hyper::{ BinanceHttpClient, Error },
+    http::request::Request,
+    hyper::BinanceHttpClient,
+    market::klines::Klines,
 };
+use tracing::debug;
 
-use super::response::BinanceResponse;
+use super::{ response::BinanceResponse, error::ApiError };
 
 pub struct BinanceApi;
 
 impl BinanceApi {
-    pub async fn get_data() -> Result<Vec<BinanceResponse>, Error> {
+    pub async fn get_kline_data(params: Klines) -> Result<Vec<BinanceResponse>, ApiError> {
         let client = BinanceHttpClient::default();
 
-        let builder = RequestBuilder::new(Method::Get, "/api/v3/klines").params(
-            vec![("symbol", "BTCUSDT"), ("interval", "1m"), ("limit", "2")]
-        );
+        let request = Request::from(params);
 
-        let data = client.send(builder).await.expect("Request failed").into_body_str().await?;
+        debug!("Requesting Kline data from binance with params: {:?}", request.params());
+
+        let data = client
+            .send(request).await
+            .map_err(ApiError::from)?
+            .into_body_str().await
+            .map_err(ApiError::from)?;
 
         let bin_res = BinanceResponse::deserialize_response(Cow::from(data)).unwrap();
 

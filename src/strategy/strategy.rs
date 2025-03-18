@@ -1,6 +1,10 @@
+use std::fmt::Debug;
+
 use config::{ Config, File };
 use serde::{ Deserialize, Serialize };
 use tracing::{ error, trace };
+
+use super::timeframe::StrategyTimeframe;
 
 const CONFIG_FILE_PATH: &'static str = "strategy.toml";
 
@@ -15,19 +19,7 @@ pub struct Strategy {
 
     pub risk_management: RiskManagement,
 
-    pub period_measurement: PeriodMeasurement,
-
     pub measurement_deviation: MeasurementDeviation,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct StrategyTimeframe {
-    #[serde(with = "humantime_serde")]
-    pub interval: std::time::Duration,
-    #[serde(with = "humantime_serde")]
-    pub tick: std::time::Duration,
-    #[serde(with = "humantime_serde")]
-    pub execution: std::time::Duration,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -46,13 +38,6 @@ pub struct RiskManagement {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct PeriodMeasurement {
-    pub measure_bars: usize,
-    // todo enum
-    pub mean_calculation_method: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
 pub struct MeasurementDeviation {
     pub enter_deviation: f32,
     pub exit_deviation: f32,
@@ -65,7 +50,7 @@ impl Strategy {
             .add_source(File::with_name(CONFIG_FILE_PATH))
             .build()
             .inspect_err(|e| {
-                error!("Could not load configuration file: {}", e);
+                error!("Failed to load configuration file: {}", e);
             })
             .unwrap();
 

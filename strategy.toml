@@ -16,7 +16,7 @@ max_drawdown = 0.35 # Max deviation from average price in percent, once reached 
 stop_loss = 0.2 # Stop loss percentage, determine point to sell position if loss reach specified value
 profit_level = 0.15 # Determine point when to close position
 
-[period_measurement]
+[timeframe.period_measurement]
 measure_bars = 20 # How many bars bot should consider when calculating average price
 mean_calculation_method="EMA" # Simple MA, EMA, VWAP
 
