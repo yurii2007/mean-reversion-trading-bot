@@ -18,7 +18,6 @@ pub struct ProcessedCandle {
     pub low: f64,
     pub close: f64,
     pub volume: f64,
-    pub deviation_from_mean: Option<f64>,
 }
 
 impl ProcessedCandle {
@@ -37,7 +36,6 @@ impl From<BinanceResponse> for ProcessedCandle {
             high: value.high_price,
             open: value.open_price,
             volume: value.taker_buy_base_asset_vol,
-            deviation_from_mean: None,
         }
     }
 }
@@ -51,7 +49,6 @@ impl From<&BinanceResponse> for ProcessedCandle {
             high: value.high_price,
             open: value.open_price,
             volume: value.taker_buy_base_asset_vol,
-            deviation_from_mean: None,
         }
     }
 }
