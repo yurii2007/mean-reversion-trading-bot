@@ -4,15 +4,15 @@ use config::{ Config, File };
 use serde::{ Deserialize, Serialize };
 use tracing::{ error, trace };
 
+use crate::api::supported_api::Api;
+
 use super::timeframe::StrategyTimeframe;
 
 const CONFIG_FILE_PATH: &'static str = "strategy.toml";
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Strategy {
-    // todo enum
     pub symbol: String,
-    // todo enum
     pub pair: String,
 
     pub timeframe: StrategyTimeframe,
@@ -24,8 +24,7 @@ pub struct Strategy {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Exchange {
-    // todo enum
-    pub api: String,
+    pub api: Api,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

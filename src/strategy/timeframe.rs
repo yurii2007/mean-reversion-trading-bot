@@ -5,6 +5,8 @@ use serde::{ de::Visitor, Deserialize, Deserializer, Serialize, Serializer };
 
 use crate::api::error::ApiError;
 
+use super::mean_calculation::MeanCalculationMethod;
+
 #[derive(Deserialize, Serialize)]
 pub struct StrategyTimeframe {
     #[serde(
@@ -23,8 +25,7 @@ pub struct StrategyTimeframe {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PeriodMeasurement {
     pub measure_bars: usize,
-    // todo enum
-    pub mean_calculation_method: String,
+    pub mean_calculation_method: MeanCalculationMethod,
 }
 
 impl Debug for StrategyTimeframe {
@@ -84,5 +85,25 @@ fn map_string_to_kline<'a>(str: &'a str) -> Result<KlineInterval, ApiError> {
         "1w" => Ok(KlineInterval::Weeks1),
         "1M" => Ok(KlineInterval::Months1),
         _ => Err(ApiError::ParseError("Invalid interval".to_string())),
+    }
+}
+
+pub fn duration_from_kline_interval(interval: &KlineInterval) -> std::time::Duration {
+    match interval {
+        KlineInterval::Minutes1 => std::time::Duration::from_secs(60),
+        KlineInterval::Minutes3 => std::time::Duration::from_secs(180),
+        KlineInterval::Minutes5 => std::time::Duration::from_secs(300),
+        KlineInterval::Minutes15 => std::time::Duration::from_secs(900),
+        KlineInterval::Minutes30 => std::time::Duration::from_secs(1800),
+        KlineInterval::Hours1 => std::time::Duration::from_secs(3600),
+        KlineInterval::Hours2 => std::time::Duration::from_secs(7200),
+        KlineInterval::Hours4 => std::time::Duration::from_secs(14400),
+        KlineInterval::Hours6 => std::time::Duration::from_secs(21600),
+        KlineInterval::Hours8 => std::time::Duration::from_secs(28800),
+        KlineInterval::Hours12 => std::time::Duration::from_secs(43200),
+        KlineInterval::Days1 => std::time::Duration::from_secs(86400),
+        KlineInterval::Days3 => std::time::Duration::from_secs(259200),
+        KlineInterval::Weeks1 => std::time::Duration::from_secs(604800),
+        KlineInterval::Months1 => std::time::Duration::from_secs(2419200),
     }
 }

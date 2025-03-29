@@ -5,17 +5,17 @@ use time::OffsetDateTime;
 
 #[derive(Debug)]
 pub struct BinanceResponse {
-    open_timestamp: OffsetDateTime,
-    open_price: f64,
-    high_price: f64,
-    low_price: f64,
-    close_price: f64,
-    volume: f64,
-    close_timestamp: OffsetDateTime,
-    quote_asset_vol: f64,
-    num_of_trades: u32,
-    taker_buy_base_asset_vol: f64,
-    taker_buy_quote_asset_vol: f64,
+    pub open_timestamp: OffsetDateTime,
+    pub open_price: f64,
+    pub high_price: f64,
+    pub low_price: f64,
+    pub close_price: f64,
+    pub volume: f64,
+    pub close_timestamp: OffsetDateTime,
+    pub quote_asset_vol: f64,
+    pub num_of_trades: u32,
+    pub taker_buy_base_asset_vol: f64,
+    pub taker_buy_quote_asset_vol: f64,
 }
 
 #[derive(Debug, Deserialize)]

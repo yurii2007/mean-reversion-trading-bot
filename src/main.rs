@@ -1,13 +1,14 @@
-use binance_spot_connector_rust::market::klines::Klines;
 use logger::init_logger;
 use tracing::info;
 
 use strategy::strategy::Strategy;
-use api::{ binance::BinanceApi, error::ApiError };
+use api::error::ApiError;
+use core::bot::Bot;
 
 pub mod api;
 pub mod logger;
 pub mod strategy;
+pub mod core;
 
 #[tokio::main]
 async fn main() -> Result<(), ApiError> {
@@ -16,13 +17,9 @@ async fn main() -> Result<(), ApiError> {
     let strategy = Strategy::new();
     info!("Loaded strategy configuration: {:?}", strategy);
 
-    let params = Klines::new(&strategy.symbol, strategy.timeframe.interval).limit(
-        strategy.timeframe.period_measurement.measure_bars.try_into().unwrap()
-    );
+    let mut bot = Bot::new(strategy, "api_key".to_string(), "api_secret".to_string(), 100_f64);
 
-    let data = BinanceApi::get_kline_data(params).await?;
+    bot.initialize().await?;
 
-    info!("DATA: {:?}", data);
-
-    Ok(())
+    bot.run().await
 }

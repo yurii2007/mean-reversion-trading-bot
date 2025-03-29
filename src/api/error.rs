@@ -4,6 +4,7 @@ use std::{ error::Error, fmt::Display };
 pub enum ApiError {
     ParseError(String),
     NetworkError(String),
+    MarketError(String),
 }
 
 impl Error for ApiError {}
@@ -13,6 +14,7 @@ impl Display for ApiError {
         match self {
             ApiError::ParseError(reason) => write!(f, "Failed to parse: {}", reason),
             ApiError::NetworkError(reason) => write!(f, "Failed to fetch: {}", reason),
+            ApiError::MarketError(reason) => write!(f, "Market error: {}", reason),
         }
     }
 }
