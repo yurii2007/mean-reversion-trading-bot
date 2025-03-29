@@ -13,7 +13,10 @@ const CONFIG_FILE_PATH: &'static str = "strategy.toml";
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Strategy {
     pub symbol: String,
+
     pub pair: String,
+
+    pub exchange: Exchange,
 
     pub timeframe: StrategyTimeframe,
 

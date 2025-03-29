@@ -2,8 +2,6 @@ use std::collections::VecDeque;
 
 use serde::{ Deserialize, Serialize };
 
-use crate::core::market_analysis::ProcessedCandle;
-
 // Simple MA, EMA, VWAP
 #[derive(Debug, Serialize, Deserialize)]
 pub enum MeanCalculationMethod {
@@ -44,40 +42,4 @@ impl SimpleMa {
 
         self.sum / (self.values.len() as f64)
     }
-}
-
-pub struct MATracker {
-    long_ma: SimpleMa,
-    short_ma: SimpleMa,
-}
-
-impl MATracker {
-    pub fn new(long_period: usize, short_period: usize) -> Self {
-        Self { long_ma: SimpleMa::new(long_period), short_ma: SimpleMa::new(short_period) }
-    }
-
-    pub fn update(&mut self, price: f64) -> (f64, f64) {
-        (self.long_ma.update(price), self.short_ma.update(price))
-    }
-
-    pub fn get_values(&self) -> (f64, f64) {
-        (self.long_ma.calculate(), self.short_ma.calculate())
-    }
-}
-
-pub fn process_candles(
-    candles: &Vec<&ProcessedCandle>,
-    long_period: usize,
-    short_period: usize
-) -> Vec<(f64, f64)> {
-    let mut ma_tracker = MATracker::new(long_period, short_period);
-    let mut res = Vec::with_capacity(candles.len());
-
-    candles.iter().for_each(|candle| {
-        let moving_averages = ma_tracker.update(candle.close);
-
-        res.push(moving_averages)
-    });
-
-    res
 }

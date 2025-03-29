@@ -1,4 +1,14 @@
-use crate::{ api::response::BinanceResponse, strategy::mean_calculation::MeanCalculationMethod };
+use time::OffsetDateTime;
+
+use crate::api::binance::response::BinanceResponse;
+
+#[derive(Debug)]
+pub struct Position {
+    pub symbol: String,
+    pub entry_price: f64,
+    pub quantity: f64,
+    pub timestamp: OffsetDateTime,
+}
 
 #[derive(Debug, Clone)]
 pub struct ProcessedCandle {
@@ -11,20 +21,13 @@ pub struct ProcessedCandle {
     pub deviation_from_mean: Option<f64>,
 }
 
-#[derive(Debug)]
-struct MarketAnalysis {
-    pub candles: Vec<ProcessedCandle>,
-    pub current_mean: f64,
-    pub mean_type: MeanCalculationMethod,
-    pub standard_deviation: f64,
-}
-
 impl ProcessedCandle {
     pub fn calculate_mean(&self) -> f64 {
         (self.open + self.close) / 2_f64
     }
 }
 
+// todo move this implementation into binance module
 impl From<BinanceResponse> for ProcessedCandle {
     fn from(value: BinanceResponse) -> Self {
         Self {

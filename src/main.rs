@@ -17,7 +17,7 @@ async fn main() -> Result<(), ApiError> {
     let strategy = Strategy::new();
     info!("Loaded strategy configuration: {:?}", strategy);
 
-    let mut bot = Bot::new(strategy, "api_key".to_string(), "api_secret".to_string(), 100_f64);
+    let mut bot = Bot::new(strategy, 100_f64);
 
     bot.initialize().await?;
 

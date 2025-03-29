@@ -1,2 +1,2 @@
-pub mod market_analysis;
 pub mod bot;
+pub mod market;

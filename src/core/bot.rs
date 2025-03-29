@@ -1,23 +1,15 @@
-use binance_spot_connector_rust::market::klines::Klines;
-use tracing::{ debug, error, info, warn };
+use tracing::{ debug, error, info, trace, warn };
 
 use crate::{
-    api::{ binance::BinanceApi, error::ApiError, supported_api::Api },
+    api::{ client::ApiClient, error::ApiError },
     strategy::{ mean_calculation::SimpleMa, strategy::Strategy },
 };
 
-use super::market_analysis::ProcessedCandle;
-
-struct Position {
-    symbol: String,
-    entry_price: f64,
-    quantity: f64,
-    timestamp: u64,
-}
+use super::market::{ Position, ProcessedCandle };
 
 pub struct Bot {
     strategy: Strategy,
-    api_client: Api,
+    api_client: Box<dyn ApiClient>,
     long_ma: SimpleMa,
     short_ma: SimpleMa,
     candles: Vec<ProcessedCandle>,
@@ -26,13 +18,14 @@ pub struct Bot {
 }
 
 impl Bot {
-    pub fn new(strategy: Strategy, api_key: String, api_secret: String, balance: f64) -> Self {
+    pub fn new(strategy: Strategy, balance: f64) -> Self {
         let long_period = strategy.timeframe.period_measurement.measure_bars;
         let short_period = long_period / 3;
+        let api_client = strategy.exchange.api.get_client();
 
         Self {
             strategy,
-            api_client: Api::Binance,
+            api_client: Box::new(api_client),
             account_balance: balance,
             candles: Vec::new(),
             long_ma: SimpleMa::new(long_period),
@@ -42,17 +35,11 @@ impl Bot {
     }
 
     pub async fn initialize(&mut self) -> Result<(), ApiError> {
-        let params = Klines::new(&self.strategy.symbol, self.strategy.timeframe.interval).limit(
-            self.strategy.timeframe.period_measurement.measure_bars.try_into().unwrap()
-        );
+        let candles = self.api_client.get_candles(&self.strategy).await?;
 
-        let data = BinanceApi::get_kline_data(params).await?;
-
-        self.candles = data
-            .iter()
-            .map(|res| {
-                let candle = ProcessedCandle::from(res);
-
+        self.candles = candles
+            .into_iter()
+            .map(|candle| {
                 self.long_ma.update(candle.close);
                 self.short_ma.update(candle.close);
 
@@ -93,28 +80,20 @@ impl Bot {
     async fn execute_trading_cycle(&mut self) -> Result<(), ApiError> {
         info!("Starting trading cycle");
 
-        let params = Klines::new(&self.strategy.symbol, self.strategy.timeframe.interval).limit(3);
-
-        let data = BinanceApi::get_kline_data(params).await?;
-
-        if data.is_empty() {
-            return Err(ApiError::MarketError("No data received from binance".to_string()));
-        }
-
-        let latest_candle = &data[2];
+        let latest_candle = self.api_client.get_latest_candle(&self.strategy).await?;
 
         info!("Received the latest candle: {:?}", latest_candle);
 
-        let short_ma = self.short_ma.update(latest_candle.close_price);
-        let long_ma = self.long_ma.update(latest_candle.close_price);
+        let short_ma = self.short_ma.update(latest_candle.close);
+        let long_ma = self.long_ma.update(latest_candle.close);
 
         info!("Updated MA: {{short: {}, long: {}}}", short_ma, long_ma);
 
-        let deviation = (latest_candle.close_price - long_ma) / long_ma;
+        let deviation = (latest_candle.close - long_ma) / long_ma;
         info!("Current mean deviation: {}", deviation * 100_f64);
 
-        self.check_exit_signals(latest_candle.close_price).await?;
-        self.check_entry_signal(latest_candle.close_price, deviation).await?;
+        self.check_exit_signals(latest_candle.close).await?;
+        self.check_entry_signal(latest_candle.close, deviation).await?;
 
         self.candles.push(ProcessedCandle::from(latest_candle));
 
@@ -188,12 +167,17 @@ impl Bot {
         if deviation <= -(self.strategy.measurement_deviation.enter_deviation as f64) / 100.0 {
             info!("Entry signal detected! Deviation: {:.2}%", deviation * 100.0);
 
-            // Calculate position size
             let capital_to_use =
                 self.account_balance * f64::from(self.strategy.risk_management.capital_per_trade);
             let quantity = capital_to_use / current_price;
 
-            info!("UNIMPLENTED: should place an order to enter a position");
+            let position = self.api_client.place_order_to_buy(
+                self.strategy.pair.clone(),
+                quantity
+            ).await?;
+
+            trace!("Updating open positions with value: {:?}", position);
+            self.open_positions.push(position);
         }
 
         Ok(())
