@@ -1,51 +1,78 @@
 use tracing::{ debug, error, info, trace, warn };
 
 use crate::{
-    api::{ client::ApiClient, error::ApiError },
-    strategy::{ mean_calculation::SimpleMa, strategy::Strategy },
+    api::{ client::{ ApiClient, KLineParams }, error::ApiError },
+    strategy::{
+        mean_calculation::{ MaTracker, MeanCalculation },
+        strategy::Strategy,
+        timeframe::duration_from_kline_interval,
+    },
 };
 
 use super::market::{ Position, ProcessedCandle };
 
+const MA_PERIOD_DIFFERENCE: usize = 3;
+
 pub struct Bot {
     strategy: Strategy,
     api_client: Box<dyn ApiClient>,
-    long_ma: SimpleMa,
-    short_ma: SimpleMa,
+    long_ma: MaTracker,
+    short_ma: MaTracker,
     candles: Vec<ProcessedCandle>,
     open_positions: Vec<Position>,
     account_balance: f64,
 }
 
 impl Bot {
-    pub fn new(strategy: Strategy, balance: f64) -> Self {
+    pub fn new(strategy: Strategy) -> Self {
         let long_period = strategy.timeframe.period_measurement.measure_bars;
-        let short_period = long_period / 3;
+        let short_period = long_period / MA_PERIOD_DIFFERENCE;
         let api_client = strategy.exchange.api.get_client();
 
         Self {
-            strategy,
             api_client: Box::new(api_client),
-            account_balance: balance,
+            account_balance: 0_f64,
             candles: Vec::new(),
-            long_ma: SimpleMa::new(long_period),
-            short_ma: SimpleMa::new(short_period),
+            long_ma: MaTracker::new(
+                long_period,
+                strategy.timeframe.period_measurement.mean_calculation_method
+            ),
+            short_ma: MaTracker::new(
+                short_period,
+                strategy.timeframe.period_measurement.mean_calculation_method
+            ),
+            strategy,
             open_positions: Vec::new(),
         }
     }
 
     pub async fn initialize(&mut self) -> Result<(), ApiError> {
-        let candles = self.api_client.get_candles(&self.strategy).await?;
+        let candles = self.api_client.get_candles(
+            KLineParams::build(
+                self.strategy.timeframe.period_measurement.measure_bars * MA_PERIOD_DIFFERENCE,
+                self.strategy.symbol.clone(),
+                duration_from_kline_interval(&self.strategy.timeframe.interval)
+            )
+        ).await?;
+
+        let account_balance = self.api_client.get_account_balance().await?;
+
+        if let Some(latest_candles) = candles.chunks(MA_PERIOD_DIFFERENCE).last() {
+            latest_candles.iter().for_each(|candle| {
+                self.short_ma.update(candle.close);
+            });
+        }
 
         self.candles = candles
             .into_iter()
             .map(|candle| {
                 self.long_ma.update(candle.close);
-                self.short_ma.update(candle.close);
 
                 candle
             })
             .collect();
+
+        self.account_balance = account_balance;
 
         info!("Bot initialized with {} candles", self.candles.len());
 
@@ -78,7 +105,7 @@ impl Bot {
     }
 
     async fn execute_trading_cycle(&mut self) -> Result<(), ApiError> {
-        info!("Starting trading cycle");
+        info!("Starting trading cycle with balance: {}", self.account_balance);
 
         let latest_candle = self.api_client.get_latest_candle(&self.strategy).await?;
 
@@ -97,9 +124,14 @@ impl Bot {
 
         self.candles.push(ProcessedCandle::from(latest_candle));
 
-        if self.candles.len() > self.strategy.timeframe.period_measurement.measure_bars * 3 {
+        if
+            self.candles.len() >
+            self.strategy.timeframe.period_measurement.measure_bars * MA_PERIOD_DIFFERENCE
+        {
             self.candles.remove(0);
         }
+
+        info!("Trading cycle executed, current balance: {}", self.account_balance);
 
         Ok(())
     }
@@ -122,6 +154,7 @@ impl Bot {
 
                 position_to_close.push(idx);
 
+                self.account_balance += position.quantity * current_price;
                 warn!("UNIMPLEMENTED: should create an order here to loss position");
             } else if profit_percentage >= self.strategy.risk_management.profit_level.into() {
                 info!(
@@ -130,6 +163,7 @@ impl Bot {
                 );
 
                 position_to_close.push(idx);
+                self.account_balance += position.quantity * current_price;
 
                 warn!("UNIMPLENTED: shuold create an order here to close profit position");
             } else {
@@ -143,6 +177,7 @@ impl Bot {
                     );
 
                     position_to_close.push(idx);
+                    self.account_balance += position.quantity * current_price;
 
                     warn!(
                         "UNIMPLEMENTED: should create an order for exit because of unstable deviation"
@@ -175,6 +210,8 @@ impl Bot {
                 self.strategy.pair.clone(),
                 quantity
             ).await?;
+
+            self.account_balance -= position.entry_price * quantity;
 
             trace!("Updating open positions with value: {:?}", position);
             self.open_positions.push(position);

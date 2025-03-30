@@ -5,17 +5,18 @@ use binance_spot_connector_rust::{
     http::{ request::Request, Credentials },
     hyper::BinanceHttpClient,
     market::klines::Klines,
+    wallet::balance,
 };
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
 use response::BinanceResponse;
-use time::OffsetDateTime;
+use time::{ OffsetDateTime, UtcDateTime };
 use tracing::{ debug, warn };
 
 use crate::{
     Strategy,
     core::market::{ Position, ProcessedCandle },
-    api::client::ApiClient,
+    api::client::{ ApiClient, KLineParams },
     ApiError,
 };
 
@@ -59,10 +60,8 @@ impl BinanceApi {
 
 #[async_trait]
 impl ApiClient for BinanceApi {
-    async fn get_candles(&self, strategy: &Strategy) -> Result<Vec<ProcessedCandle>, ApiError> {
-        let params = Klines::new(&strategy.symbol, strategy.timeframe.interval).limit(
-            strategy.timeframe.period_measurement.measure_bars as u32
-        );
+    async fn get_candles(&self, params: KLineParams) -> Result<Vec<ProcessedCandle>, ApiError> {
+        let params: Klines = params.try_into().map_err(ApiError::ParseError)?;
 
         let response = self.get_kline_data(params).await?;
 
@@ -74,7 +73,20 @@ impl ApiClient for BinanceApi {
     }
 
     async fn get_latest_candle(&self, strategy: &'_ Strategy) -> Result<ProcessedCandle, ApiError> {
-        let params = Klines::new(&strategy.symbol, strategy.timeframe.interval).limit(1);
+        let current_date_timestamp = UtcDateTime::now().unix_timestamp() * 1000;
+        let latest_kline_start_date =
+            (current_date_timestamp as u128) - strategy.timeframe.execution.as_millis();
+
+        let params = Klines::new(&strategy.symbol, strategy.timeframe.interval)
+            .start_time(
+                latest_kline_start_date
+                    .try_into()
+                    .map_err(|e|
+                        ApiError::ParseError(format!("Could not convert timestamp: {}", e))
+                    )?
+            )
+            .end_time(current_date_timestamp as u64)
+            .limit(1);
 
         let response = self.get_kline_data(params).await?;
 
@@ -100,5 +112,14 @@ impl ApiClient for BinanceApi {
         warn!("UNIMPLEMENTED: should place order to sell for {} {}", quantity, pair);
 
         Ok(())
+    }
+
+    async fn get_account_balance(&self) -> Result<f64, ApiError> {
+        let account_data_request = balance();
+        let account_data = self.client.send(account_data_request).await?.into_body_str().await?;
+
+        warn!("account data response: {:?}", account_data);
+
+        Ok(100_f64)
     }
 }

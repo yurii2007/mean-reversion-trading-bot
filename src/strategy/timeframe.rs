@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{ fmt::Debug, time::Duration };
 
 use binance_spot_connector_rust::market::klines::KlineInterval;
 use serde::{ de::Visitor, Deserialize, Deserializer, Serialize, Serializer };
@@ -105,5 +105,26 @@ pub fn duration_from_kline_interval(interval: &KlineInterval) -> std::time::Dura
         KlineInterval::Days3 => std::time::Duration::from_secs(259200),
         KlineInterval::Weeks1 => std::time::Duration::from_secs(604800),
         KlineInterval::Months1 => std::time::Duration::from_secs(2419200),
+    }
+}
+
+pub fn duration_into_kline_interval(duration: &Duration) -> Option<KlineInterval> {
+    match duration.as_secs() {
+        60 => Some(KlineInterval::Minutes1),
+        180 => Some(KlineInterval::Minutes3),
+        300 => Some(KlineInterval::Minutes5),
+        900 => Some(KlineInterval::Minutes15),
+        1800 => Some(KlineInterval::Minutes30),
+        3600 => Some(KlineInterval::Hours1),
+        7200 => Some(KlineInterval::Hours2),
+        14400 => Some(KlineInterval::Hours4),
+        21600 => Some(KlineInterval::Hours6),
+        28800 => Some(KlineInterval::Hours8),
+        43200 => Some(KlineInterval::Hours12),
+        86400 => Some(KlineInterval::Days1),
+        259200 => Some(KlineInterval::Days3),
+        604800 => Some(KlineInterval::Weeks1),
+        2419200 => Some(KlineInterval::Months1),
+        _ => None,
     }
 }

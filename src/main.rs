@@ -19,7 +19,7 @@ async fn main() -> Result<(), ApiError> {
     let strategy = Strategy::new();
     info!("Loaded strategy configuration: {:?}", strategy);
 
-    let mut bot = Bot::new(strategy, 100_f64);
+    let mut bot = Bot::new(strategy);
 
     bot.initialize().await?;
 
