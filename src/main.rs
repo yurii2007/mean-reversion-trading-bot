@@ -1,5 +1,6 @@
 use logger::init_logger;
 use tracing::info;
+use dotenv::dotenv;
 
 use strategy::strategy::Strategy;
 use api::error::ApiError;
@@ -12,6 +13,7 @@ pub mod core;
 
 #[tokio::main]
 async fn main() -> Result<(), ApiError> {
+    dotenv().unwrap();
     init_logger();
 
     let strategy = Strategy::new();

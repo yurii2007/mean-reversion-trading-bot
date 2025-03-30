@@ -11,7 +11,7 @@ pub enum Api {
 impl Api {
     pub fn get_client(&self) -> impl ApiClient {
         match &self {
-            Api::Binance => BinanceApi,
+            Api::Binance => BinanceApi::new(),
         }
     }
 }
