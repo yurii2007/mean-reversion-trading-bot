@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{ borrow::Cow, time::Duration };
 
 use async_trait::async_trait;
 use binance_spot_connector_rust::{
@@ -10,13 +10,13 @@ use binance_spot_connector_rust::{
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
 use response::BinanceResponse;
-use time::{ OffsetDateTime, UtcDateTime };
+use time::OffsetDateTime;
 use tracing::{ debug, warn };
 
 use crate::{
-    Strategy,
-    core::market::{ Position, ProcessedCandle },
     api::client::{ ApiClient, KLineParams },
+    core::market::{ Position, ProcessedCandle },
+    strategy::timeframe::duration_into_kline_interval,
     ApiError,
 };
 
@@ -72,21 +72,16 @@ impl ApiClient for BinanceApi {
         Ok(response.iter().map(ProcessedCandle::from).collect())
     }
 
-    async fn get_latest_candle(&self, strategy: &'_ Strategy) -> Result<ProcessedCandle, ApiError> {
-        let current_date_timestamp = UtcDateTime::now().unix_timestamp() * 1000;
-        let latest_kline_start_date =
-            (current_date_timestamp as u128) - strategy.timeframe.execution.as_millis();
+    async fn get_latest_candle(
+        &self,
+        symbol: &'_ str,
+        interval: &'_ Duration
+    ) -> Result<ProcessedCandle, ApiError> {
+        let kline_interval = duration_into_kline_interval(interval).ok_or(
+            ApiError::ParseError("Invalid interval provided".to_string())
+        )?;
 
-        let params = Klines::new(&strategy.symbol, strategy.timeframe.interval)
-            .start_time(
-                latest_kline_start_date
-                    .try_into()
-                    .map_err(|e|
-                        ApiError::ParseError(format!("Could not convert timestamp: {}", e))
-                    )?
-            )
-            .end_time(current_date_timestamp as u64)
-            .limit(1);
+        let params = Klines::new(symbol, kline_interval).limit(1);
 
         let response = self.get_kline_data(params).await?;
 
@@ -103,7 +98,7 @@ impl ApiClient for BinanceApi {
         Ok(Position {
             entry_price: 83600_f64,
             quantity,
-            symbol: pair,
+            pair,
             timestamp: OffsetDateTime::now_utc(),
         })
     }

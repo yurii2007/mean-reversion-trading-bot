@@ -4,7 +4,7 @@ use crate::api::binance::response::BinanceResponse;
 
 #[derive(Debug)]
 pub struct Position {
-    pub symbol: String,
+    pub pair: String,
     pub entry_price: f64,
     pub quantity: f64,
     pub timestamp: OffsetDateTime,

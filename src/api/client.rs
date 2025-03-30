@@ -25,7 +25,11 @@ pub struct KLineParams {
 pub trait ApiClient {
     async fn get_candles(&self, params: KLineParams) -> Result<Vec<ProcessedCandle>, ApiError>;
 
-    async fn get_latest_candle(&self, strategy: &'_ Strategy) -> Result<ProcessedCandle, ApiError>;
+    async fn get_latest_candle(
+        &self,
+        symbol: &'_ str,
+        interval: &'_ Duration
+    ) -> Result<ProcessedCandle, ApiError>;
 
     async fn place_order_to_buy(&self, pair: String, quantity: f64) -> Result<Position, ApiError>;
 

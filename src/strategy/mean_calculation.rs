@@ -4,7 +4,6 @@ use serde::{ Deserialize, Serialize };
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum MeanCalculationMethod {
-    #[serde(rename = "PascalCase")]
     SimpleMA,
     EMA,
     VMAP,

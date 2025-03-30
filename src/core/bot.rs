@@ -1,4 +1,6 @@
-use tracing::{ debug, error, info, trace, warn };
+use std::collections::HashSet;
+
+use tracing::{ debug, error, info, warn };
 
 use crate::{
     api::{ client::{ ApiClient, KLineParams }, error::ApiError },
@@ -92,7 +94,7 @@ impl Bot {
 
         self.initialize().await?;
 
-        let mut interval = tokio::time::interval(self.strategy.timeframe.execution);
+        let mut interval = tokio::time::interval(self.strategy.timeframe.tick);
 
         loop {
             info!("Waiting for the next execution cycle");
@@ -107,7 +109,10 @@ impl Bot {
     async fn execute_trading_cycle(&mut self) -> Result<(), ApiError> {
         info!("Starting trading cycle with balance: {}", self.account_balance);
 
-        let latest_candle = self.api_client.get_latest_candle(&self.strategy).await?;
+        let latest_candle = self.api_client.get_latest_candle(
+            &self.strategy.symbol,
+            &self.strategy.timeframe.tick
+        ).await?;
 
         info!("Received the latest candle: {:?}", latest_candle);
 
@@ -116,7 +121,7 @@ impl Bot {
 
         info!("Updated MA: {{short: {}, long: {}}}", short_ma, long_ma);
 
-        let deviation = (latest_candle.close - long_ma) / long_ma;
+        let deviation = (short_ma - long_ma) / long_ma;
         info!("Current mean deviation: {}", deviation * 100_f64);
 
         self.check_exit_signals(latest_candle.close).await?;
@@ -141,7 +146,7 @@ impl Bot {
             return Ok(());
         }
 
-        let mut position_to_close = Vec::new();
+        let mut position_to_close: HashSet<usize> = HashSet::new();
 
         for (idx, position) in self.open_positions.iter().enumerate() {
             let profit_percentage = (current_price - position.entry_price) / position.entry_price;
@@ -152,20 +157,48 @@ impl Bot {
                     profit_percentage * 100.0
                 );
 
-                position_to_close.push(idx);
-
-                self.account_balance += position.quantity * current_price;
-                warn!("UNIMPLEMENTED: should create an order here to loss position");
+                match
+                    self.api_client.place_order_to_sell(
+                        position.pair.clone(),
+                        position.quantity
+                    ).await
+                {
+                    Ok(_) => {
+                        self.account_balance += position.quantity * current_price;
+                        position_to_close.insert(idx);
+                    }
+                    Err(e) => {
+                        error!(
+                            "Could not create an order to sell for position {:?}: {}",
+                            position,
+                            e
+                        );
+                    }
+                }
             } else if profit_percentage >= self.strategy.risk_management.profit_level.into() {
                 info!(
                     "Profit triggered, closing position with gained profit: {:.2}%",
                     profit_percentage * 100.0
                 );
 
-                position_to_close.push(idx);
-                self.account_balance += position.quantity * current_price;
-
-                warn!("UNIMPLENTED: shuold create an order here to close profit position");
+                match
+                    self.api_client.place_order_to_sell(
+                        position.pair.clone(),
+                        position.quantity
+                    ).await
+                {
+                    Ok(_) => {
+                        self.account_balance += position.quantity * current_price;
+                        position_to_close.insert(idx);
+                    }
+                    Err(e) => {
+                        error!(
+                            "Could not create an order to sell for position {:?}: {}",
+                            position,
+                            e
+                        );
+                    }
+                }
             } else {
                 let deviation =
                     (current_price - self.short_ma.calculate()) / self.short_ma.calculate();
@@ -176,8 +209,24 @@ impl Bot {
                         deviation
                     );
 
-                    position_to_close.push(idx);
-                    self.account_balance += position.quantity * current_price;
+                    match
+                        self.api_client.place_order_to_sell(
+                            position.pair.clone(),
+                            position.quantity
+                        ).await
+                    {
+                        Ok(_) => {
+                            self.account_balance += position.quantity * current_price;
+                            position_to_close.insert(idx);
+                        }
+                        Err(e) => {
+                            error!(
+                                "Could not create an order to sell for position {:?}: {}",
+                                position,
+                                e
+                            );
+                        }
+                    }
 
                     warn!(
                         "UNIMPLEMENTED: should create an order for exit because of unstable deviation"
@@ -185,6 +234,14 @@ impl Bot {
                 }
             }
         }
+
+        let mut index = 0;
+        self.open_positions.retain(|_| {
+            let should_remove = position_to_close.contains(&index);
+            index += 1;
+
+            should_remove
+        });
 
         Ok(())
     }
@@ -206,15 +263,17 @@ impl Bot {
                 self.account_balance * f64::from(self.strategy.risk_management.capital_per_trade);
             let quantity = capital_to_use / current_price;
 
-            let position = self.api_client.place_order_to_buy(
-                self.strategy.pair.clone(),
-                quantity
-            ).await?;
+            match self.api_client.place_order_to_buy(self.strategy.pair.clone(), quantity).await {
+                Ok(position) => {
+                    self.account_balance -= position.entry_price * quantity;
 
-            self.account_balance -= position.entry_price * quantity;
-
-            trace!("Updating open positions with value: {:?}", position);
-            self.open_positions.push(position);
+                    info!("Updating open positions with value: {:?}", position);
+                    self.open_positions.push(position);
+                }
+                Err(e) => {
+                    error!("Could not create an order to buy: {}", e);
+                }
+            }
         }
 
         Ok(())

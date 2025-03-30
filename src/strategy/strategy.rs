@@ -92,7 +92,6 @@ pair = "BTC/USDT"
 [timeframe]
 interval = "1h"
 tick = "15m"
-execution = "1m"
 
 [timeframe.period_measurement]
 measure_bars = 20
@@ -127,7 +126,6 @@ exit_deviation = 0.1
             std::time::Duration::from_secs(60 * 60)
         );
         assert_eq!(strategy.timeframe.tick, Duration::from_secs(60 * 15));
-        assert_eq!(strategy.timeframe.execution, Duration::from_secs(60));
 
         assert_eq!(strategy.exchange.api, Api::Binance);
 
@@ -147,7 +145,6 @@ exit_deviation = 0.1
             r#"
 interval = "1"
 tick = "1"
-execution = "1m"
 
 [exchange]
 api = "foo"

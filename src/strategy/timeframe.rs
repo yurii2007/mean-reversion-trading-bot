@@ -16,8 +16,6 @@ pub struct StrategyTimeframe {
     pub interval: KlineInterval,
     #[serde(with = "humantime_serde")]
     pub tick: std::time::Duration,
-    #[serde(with = "humantime_serde")]
-    pub execution: std::time::Duration,
 
     pub period_measurement: PeriodMeasurement,
 }
@@ -32,10 +30,9 @@ impl Debug for StrategyTimeframe {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "StrategyTimeframe {{interval: {:?}, tick: {:?}, execution: {:?}, period_measurement: {:?}}}",
+            "StrategyTimeframe {{interval: {:?}, tick: {:?}, period_measurement: {:?}}}",
             self.interval.to_string(),
             self.tick,
-            self.execution,
             self.period_measurement
         )
     }

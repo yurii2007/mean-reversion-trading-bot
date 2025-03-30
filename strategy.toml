@@ -2,9 +2,8 @@ symbol = "BTCUSDT"
 pair = "BTC/USDT" 
 
 [timeframe]
-interval = "3m" # Interval to calculate average price
-tick = "1m" # Timeframe for a single bar
-execution = "1m" # How frequently bot should analyze market and make decisions
+interval = "15m" # Interval to calculate average price
+tick = "3m" # Timeframe for a single bar
 
 [exchange]
 api = "binance" # Which api bot should use to collect data(Currently only binance supported)
@@ -14,11 +13,11 @@ capital_per_trade = 0.1 # Percent of all capital for single position
 max_positions = 5 # Max position bot would be operate in a single timeframe
 max_drawdown = 0.5 # Max deviation from average price in percent, once reached all the trades would be stopped, could be treated as a guard for Mean Reversion strategy
 stop_loss = 0.3 # Stop loss percentage, determine point to sell position if loss reach specified value
-profit_level = 0.15 # Determine point when to close position
+profit_level = 0.1 # Determine point when to close position
 
 [timeframe.period_measurement]
 measure_bars = 20 # How many bars bot should consider when calculating average price
-mean_calculation_method="EMA" # Simple MA, EMA, VWAP
+mean_calculation_method="SimpleMA" # Simple MA, EMA, VWAP
 
 [measurement_deviation]
 enter_deviation = 0.1 # Determine on what deviation level bot should buy assets
