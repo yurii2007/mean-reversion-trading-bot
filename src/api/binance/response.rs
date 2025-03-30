@@ -1,17 +1,17 @@
 use std::{ borrow::Cow, fmt };
 
 use serde::{ de::Visitor, Deserialize, Deserializer };
-use time::OffsetDateTime;
+use time::UtcDateTime;
 
 #[derive(Debug)]
 pub struct BinanceResponse {
-    pub open_timestamp: OffsetDateTime,
+    pub open_timestamp: UtcDateTime,
     pub open_price: f64,
     pub high_price: f64,
     pub low_price: f64,
     pub close_price: f64,
     pub volume: f64,
-    pub close_timestamp: OffsetDateTime,
+    pub close_timestamp: UtcDateTime,
     pub quote_asset_vol: f64,
     pub num_of_trades: u32,
     pub taker_buy_base_asset_vol: f64,
@@ -20,13 +20,13 @@ pub struct BinanceResponse {
 
 #[derive(Debug, Deserialize)]
 struct RawResponse(
-    #[serde(deserialize_with = "deserialize_timestamp")] OffsetDateTime,
+    #[serde(deserialize_with = "deserialize_timestamp")] UtcDateTime,
     #[serde(deserialize_with = "deserialize_float")] f64,
     #[serde(deserialize_with = "deserialize_float")] f64,
     #[serde(deserialize_with = "deserialize_float")] f64,
     #[serde(deserialize_with = "deserialize_float")] f64,
     #[serde(deserialize_with = "deserialize_float")] f64,
-    #[serde(deserialize_with = "deserialize_timestamp")] OffsetDateTime,
+    #[serde(deserialize_with = "deserialize_timestamp")] UtcDateTime,
     #[serde(deserialize_with = "deserialize_float")] f64,
     u32,
     #[serde(deserialize_with = "deserialize_float")] f64,
@@ -72,20 +72,20 @@ impl From<RawResponse> for BinanceResponse {
     }
 }
 
-fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<OffsetDateTime, D::Error>
+fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<UtcDateTime, D::Error>
     where D: Deserializer<'de>
 {
     struct TimestampVisitor;
 
     impl<'de> Visitor<'de> for TimestampVisitor {
-        type Value = OffsetDateTime;
+        type Value = UtcDateTime;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
             formatter.write_str("Expected a valid timestamp")
         }
 
         fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E> where E: serde::de::Error {
-            OffsetDateTime::from_unix_timestamp_nanos((v as i128) * 1_000_000).map_err(E::custom)
+            UtcDateTime::from_unix_timestamp_nanos((v as i128) * 1_000_000).map_err(E::custom)
         }
     }
 

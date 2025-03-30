@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
-use tracing::{ debug, error, info, warn };
+use tracing::{ debug, error, info, trace, warn };
+use uuid::Uuid;
 
 use crate::{
     api::{ client::{ ApiClient, KLineParams }, error::ApiError },
@@ -146,10 +147,11 @@ impl Bot {
             return Ok(());
         }
 
-        let mut position_to_close: HashSet<usize> = HashSet::new();
+        let mut position_to_close: HashSet<Uuid> = HashSet::new();
 
-        for (idx, position) in self.open_positions.iter().enumerate() {
+        for position in self.open_positions.iter() {
             let profit_percentage = (current_price - position.entry_price) / position.entry_price;
+            trace!("Profit percentage for position {:?}: {:.2}%", position.id, profit_percentage);
 
             if profit_percentage <= -f64::from(self.strategy.risk_management.stop_loss) {
                 info!(
@@ -165,7 +167,8 @@ impl Bot {
                 {
                     Ok(_) => {
                         self.account_balance += position.quantity * current_price;
-                        position_to_close.insert(idx);
+                        trace!("Closing position {:?}", position.id);
+                        position_to_close.insert(position.id);
                     }
                     Err(e) => {
                         error!(
@@ -189,7 +192,8 @@ impl Bot {
                 {
                     Ok(_) => {
                         self.account_balance += position.quantity * current_price;
-                        position_to_close.insert(idx);
+                        trace!("Closing position {:?}", position.id);
+                        position_to_close.insert(position.id);
                     }
                     Err(e) => {
                         error!(
@@ -202,6 +206,8 @@ impl Bot {
             } else {
                 let deviation =
                     (current_price - self.short_ma.calculate()) / self.short_ma.calculate();
+
+                trace!("Checking deviation for extreme value: {:.2}", deviation);
 
                 if deviation >= self.strategy.risk_management.max_drawdown.into() {
                     info!(
@@ -217,7 +223,8 @@ impl Bot {
                     {
                         Ok(_) => {
                             self.account_balance += position.quantity * current_price;
-                            position_to_close.insert(idx);
+                            trace!("Closing position {:?}", position.id);
+                            position_to_close.insert(position.id);
                         }
                         Err(e) => {
                             error!(
@@ -235,13 +242,7 @@ impl Bot {
             }
         }
 
-        let mut index = 0;
-        self.open_positions.retain(|_| {
-            let should_remove = position_to_close.contains(&index);
-            index += 1;
-
-            should_remove
-        });
+        self.open_positions.retain(|position| { position_to_close.contains(&position.id) });
 
         Ok(())
     }

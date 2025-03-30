@@ -10,7 +10,7 @@ use binance_spot_connector_rust::{
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
 use response::BinanceResponse;
-use time::OffsetDateTime;
+use time::UtcDateTime;
 use tracing::{ debug, warn };
 
 use crate::{
@@ -95,12 +95,7 @@ impl ApiClient for BinanceApi {
     async fn place_order_to_buy(&self, pair: String, quantity: f64) -> Result<Position, ApiError> {
         warn!("UNIMPLEMENTED: should place order to buy for {} {}", quantity, pair);
 
-        Ok(Position {
-            entry_price: 83600_f64,
-            quantity,
-            pair,
-            timestamp: OffsetDateTime::now_utc(),
-        })
+        Ok(Position::new(pair, 83_600_f64, quantity, UtcDateTime::now()))
     }
 
     async fn place_order_to_sell(&self, pair: String, quantity: f64) -> Result<(), ApiError> {

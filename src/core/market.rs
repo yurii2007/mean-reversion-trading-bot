@@ -1,13 +1,15 @@
-use time::OffsetDateTime;
+use time::UtcDateTime;
+use uuid::Uuid;
 
 use crate::api::binance::response::BinanceResponse;
 
 #[derive(Debug)]
 pub struct Position {
+    pub id: Uuid,
     pub pair: String,
     pub entry_price: f64,
     pub quantity: f64,
-    pub timestamp: OffsetDateTime,
+    pub timestamp: UtcDateTime,
 }
 
 #[derive(Debug, Clone)]
@@ -18,6 +20,12 @@ pub struct ProcessedCandle {
     pub low: f64,
     pub close: f64,
     pub volume: f64,
+}
+
+impl Position {
+    pub fn new(pair: String, entry_price: f64, quantity: f64, timestamp: UtcDateTime) -> Self {
+        Self { id: Uuid::new_v4(), pair, entry_price, quantity, timestamp }
+    }
 }
 
 impl ProcessedCandle {
