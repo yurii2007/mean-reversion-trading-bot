@@ -1,5 +1,6 @@
-use std::collections::HashSet;
+use std::{ collections::HashSet, time::Duration };
 
+use tokio::time::sleep;
 use tracing::{ debug, error, info, trace };
 use uuid::Uuid;
 
@@ -15,6 +16,7 @@ use crate::{
 use super::market::{ Position, ProcessedCandle };
 
 const MA_PERIOD_DIFFERENCE: usize = 3;
+const TRADINC_CYCLE_RECOVERY_PERIOD: u64 = 30;
 
 pub struct Bot {
     strategy: Strategy,
@@ -66,14 +68,9 @@ impl Bot {
             });
         }
 
-        self.candles = candles
-            .into_iter()
-            .map(|candle| {
-                self.long_ma.update(candle.close);
-
-                candle
-            })
-            .collect();
+        self.candles.iter().for_each(|candle| {
+            self.long_ma.update(candle.close);
+        });
 
         self.account_balance = account_balance;
 
@@ -103,6 +100,7 @@ impl Bot {
 
             if let Err(e) = self.execute_trading_cycle().await {
                 error!("Error executing trading cycle: {}", e);
+                sleep(Duration::from_secs(TRADINC_CYCLE_RECOVERY_PERIOD)).await;
             }
         }
     }
