@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use tracing::{ debug, error, info, trace, warn };
+use tracing::{ debug, error, info, trace };
 use uuid::Uuid;
 
 use crate::{
@@ -147,7 +147,8 @@ impl Bot {
             return Ok(());
         }
 
-        let mut position_to_close: HashSet<Uuid> = HashSet::new();
+        let mut positions_to_close: HashSet<Uuid> = HashSet::new();
+        let mut balance_difference: f64 = 0_f64;
 
         for position in self.open_positions.iter() {
             let profit_percentage = (current_price - position.entry_price) / position.entry_price;
@@ -159,24 +160,9 @@ impl Bot {
                     profit_percentage * 100.0
                 );
 
-                match
-                    self.api_client.place_order_to_sell(
-                        position.pair.clone(),
-                        position.quantity
-                    ).await
-                {
-                    Ok(_) => {
-                        self.account_balance += position.quantity * current_price;
-                        trace!("Closing position {:?}", position.id);
-                        position_to_close.insert(position.id);
-                    }
-                    Err(e) => {
-                        error!(
-                            "Could not create an order to sell for position {:?}: {}",
-                            position,
-                            e
-                        );
-                    }
+                if let Ok(sum) = self.place_order_to_sell(current_price, position).await {
+                    positions_to_close.insert(position.id);
+                    balance_difference += sum;
                 }
             } else if profit_percentage >= self.strategy.risk_management.profit_level.into() {
                 info!(
@@ -184,24 +170,9 @@ impl Bot {
                     profit_percentage * 100.0
                 );
 
-                match
-                    self.api_client.place_order_to_sell(
-                        position.pair.clone(),
-                        position.quantity
-                    ).await
-                {
-                    Ok(_) => {
-                        self.account_balance += position.quantity * current_price;
-                        trace!("Closing position {:?}", position.id);
-                        position_to_close.insert(position.id);
-                    }
-                    Err(e) => {
-                        error!(
-                            "Could not create an order to sell for position {:?}: {}",
-                            position,
-                            e
-                        );
-                    }
+                if let Ok(sum) = self.place_order_to_sell(current_price, position).await {
+                    positions_to_close.insert(position.id);
+                    balance_difference += sum;
                 }
             } else {
                 let deviation =
@@ -215,34 +186,16 @@ impl Bot {
                         deviation
                     );
 
-                    match
-                        self.api_client.place_order_to_sell(
-                            position.pair.clone(),
-                            position.quantity
-                        ).await
-                    {
-                        Ok(_) => {
-                            self.account_balance += position.quantity * current_price;
-                            trace!("Closing position {:?}", position.id);
-                            position_to_close.insert(position.id);
-                        }
-                        Err(e) => {
-                            error!(
-                                "Could not create an order to sell for position {:?}: {}",
-                                position,
-                                e
-                            );
-                        }
+                    if let Ok(sum) = self.place_order_to_sell(current_price, position).await {
+                        positions_to_close.insert(position.id);
+                        balance_difference += sum;
                     }
-
-                    warn!(
-                        "UNIMPLEMENTED: should create an order for exit because of unstable deviation"
-                    );
                 }
             }
         }
 
-        self.open_positions.retain(|position| { position_to_close.contains(&position.id) });
+        self.update_balance(balance_difference);
+        self.open_positions.retain(|position| { positions_to_close.contains(&position.id) });
 
         Ok(())
     }
@@ -278,5 +231,26 @@ impl Bot {
         }
 
         Ok(())
+    }
+
+    async fn place_order_to_sell(
+        &self,
+        current_price: f64,
+        position: &Position
+    ) -> Result<f64, ApiError> {
+        match self.api_client.place_order_to_sell(position.pair.clone(), position.quantity).await {
+            Ok(_) => {
+                trace!("Closing position {:?}", position.id);
+                Ok(current_price * position.quantity)
+            }
+            Err(e) => {
+                error!("Could not create an order to sell for position {:?}: {}", position, e);
+                Err(e)
+            }
+        }
+    }
+
+    fn update_balance(&mut self, sum: f64) {
+        self.account_balance += sum;
     }
 }

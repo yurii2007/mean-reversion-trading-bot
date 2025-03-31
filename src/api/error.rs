@@ -5,6 +5,7 @@ pub enum ApiError {
     ParseError(String),
     NetworkError(String),
     MarketError(String),
+    OrderError(String),
 }
 
 impl Error for ApiError {}
@@ -15,6 +16,7 @@ impl Display for ApiError {
             ApiError::ParseError(reason) => write!(f, "Failed to parse: {}", reason),
             ApiError::NetworkError(reason) => write!(f, "Failed to fetch: {}", reason),
             ApiError::MarketError(reason) => write!(f, "Market error: {}", reason),
+            ApiError::OrderError(reason) => write!(f, "Order error: {}", reason),
         }
     }
 }
