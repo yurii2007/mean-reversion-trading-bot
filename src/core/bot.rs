@@ -120,8 +120,8 @@ impl Bot {
 
         info!("Updated MA: {{short: {}, long: {}}}", short_ma, long_ma);
 
-        let deviation = (short_ma - long_ma) / long_ma;
-        info!("Current mean deviation: {}", deviation * 100_f64);
+        let deviation = ((short_ma - long_ma) / long_ma) * 100_f64;
+        info!("Current mean deviation: {}", deviation);
 
         self.check_exit_signals(latest_candle.close).await?;
         self.check_entry_signal(latest_candle.close, deviation).await?;
@@ -149,14 +149,12 @@ impl Bot {
         let mut balance_difference: f64 = 0_f64;
 
         for position in self.open_positions.iter() {
-            let profit_percentage = (current_price - position.entry_price) / position.entry_price;
+            let profit_percentage =
+                ((current_price - position.entry_price) / position.entry_price) * 100_f64;
             trace!("Profit percentage for position {:?}: {:.2}%", position.id, profit_percentage);
 
             if profit_percentage <= -f64::from(self.strategy.risk_management.stop_loss) {
-                info!(
-                    "Stop loss triggered, closing position with loss: {:.2}%",
-                    profit_percentage * 100.0
-                );
+                info!("Stop loss triggered, closing position with loss: {:.2}%", profit_percentage);
 
                 if let Ok(sum) = self.place_order_to_sell(current_price, position).await {
                     positions_to_close.insert(position.id);
@@ -165,7 +163,7 @@ impl Bot {
             } else if profit_percentage >= self.strategy.risk_management.profit_level.into() {
                 info!(
                     "Profit triggered, closing position with gained profit: {:.2}%",
-                    profit_percentage * 100.0
+                    profit_percentage
                 );
 
                 if let Ok(sum) = self.place_order_to_sell(current_price, position).await {
@@ -209,7 +207,7 @@ impl Bot {
         }
 
         if deviation <= -(self.strategy.measurement_deviation.enter_deviation as f64) / 100.0 {
-            info!("Entry signal detected! Deviation: {:.2}%", deviation * 100.0);
+            info!("Entry signal detected! Deviation: {:.2}%", deviation);
 
             let capital_to_use =
                 self.account_balance * f64::from(self.strategy.risk_management.capital_per_trade);
