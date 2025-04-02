@@ -102,33 +102,30 @@ impl ApiClient for BinanceApi {
         Ok(ProcessedCandle::from(&response[0]))
     }
 
-    async fn place_order_to_buy(&self, symbol: &str, quantity: f64) -> Result<Position, ApiError> {
+    async fn place_order_to_buy(
+        &self,
+        symbol: &str,
+        quantity: f64,
+        price: f64
+    ) -> Result<Position, ApiError> {
         let decimal_quantity = BinanceApi::get_decimal_quantity(quantity)?;
 
-        // let order = trade
-        //     ::new_order(&pair, trade::order::Side::Sell, "MARKET")
-        //     .quantity(decimal_quantity);
-
         let order = trade
-            ::new_order_test(symbol, trade::order::Side::Buy, "MARKET")
+            ::new_order(symbol, trade::order::Side::Buy, "MARKET")
             .quantity(decimal_quantity);
 
         info!("Created order to buy for {} {}", symbol, quantity);
 
         self.client.send(order).await?;
 
-        Ok(Position::new(symbol.to_string(), 83_600_f64, quantity, UtcDateTime::now()))
+        Ok(Position::new(symbol.to_string(), price, quantity, UtcDateTime::now()))
     }
 
     async fn place_order_to_sell(&self, symbol: &str, quantity: f64) -> Result<(), ApiError> {
         let decimal_quantity = BinanceApi::get_decimal_quantity(quantity)?;
 
-        // let order = trade
-        //     ::new_order(&pair, trade::order::Side::Sell, "MARKET")
-        //     .quantity(decimal_quantity);
-
         let order = trade
-            ::new_order_test(symbol, trade::order::Side::Sell, "MARKET")
+            ::new_order(symbol, trade::order::Side::Sell, "MARKET")
             .quantity(decimal_quantity);
 
         info!("Created order to Sell for {} {}", symbol, quantity);

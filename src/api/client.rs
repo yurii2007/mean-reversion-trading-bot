@@ -34,7 +34,8 @@ pub trait ApiClient {
     async fn place_order_to_buy(
         &self,
         symbol: &'_ str,
-        quantity: f64
+        quantity: f64,
+        price: f64,
     ) -> Result<Position, ApiError>;
 
     async fn place_order_to_sell(&self, symbol: &'_ str, quantity: f64) -> Result<(), ApiError>;

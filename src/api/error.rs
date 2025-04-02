@@ -6,6 +6,8 @@ pub enum ApiError {
     NetworkError(String),
     MarketError(String),
     OrderError(String),
+    ValidationError(String),
+    NotFound(String),
 }
 
 impl Error for ApiError {}
@@ -17,6 +19,8 @@ impl Display for ApiError {
             ApiError::NetworkError(reason) => write!(f, "Failed to fetch: {}", reason),
             ApiError::MarketError(reason) => write!(f, "Market error: {}", reason),
             ApiError::OrderError(reason) => write!(f, "Order error: {}", reason),
+            ApiError::ValidationError(reason) => write!(f, "Invalid input: {}", reason),
+            ApiError::NotFound(reason) => write!(f, "Not found: {}", reason),
         }
     }
 }

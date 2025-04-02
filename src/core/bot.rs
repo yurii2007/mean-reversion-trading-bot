@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-use super::market::{ Position, ProcessedCandle };
+use super::{ market::ProcessedCandle, position_manager::PositionManager };
 
 const MA_PERIOD_DIFFERENCE: usize = 3;
 const TRADINC_CYCLE_RECOVERY_PERIOD: u64 = 30;
@@ -21,10 +21,10 @@ const TRADINC_CYCLE_RECOVERY_PERIOD: u64 = 30;
 pub struct Bot {
     strategy: Strategy,
     api_client: Box<dyn ApiClient>,
+    position_manager: PositionManager,
     long_ma: MaTracker,
     short_ma: MaTracker,
     candles: Vec<ProcessedCandle>,
-    open_positions: Vec<Position>,
     account_balance: f64,
 }
 
@@ -36,6 +36,7 @@ impl Bot {
 
         Self {
             api_client: Box::new(api_client),
+            position_manager: PositionManager::new(strategy.risk_management.max_positions),
             account_balance: 0_f64,
             candles: Vec::new(),
             long_ma: MaTracker::new(
@@ -47,7 +48,6 @@ impl Bot {
                 strategy.timeframe.period_measurement.mean_calculation_method
             ),
             strategy,
-            open_positions: Vec::new(),
         }
     }
 
@@ -144,20 +144,23 @@ impl Bot {
             self.candles.remove(0);
         }
 
-        info!("Trading cycle executed, current balance: {}", self.account_balance);
+        info!(
+            "Trading cycle executed, current balance: {}\nopen positions: {}",
+            self.account_balance,
+            self.position_manager.len()
+        );
 
         Ok(())
     }
 
     async fn check_exit_signals(&mut self, current_price: f64) -> Result<(), ApiError> {
-        if self.open_positions.is_empty() {
+        if self.position_manager.is_empty() {
             return Ok(());
         }
 
         let mut positions_to_close: HashSet<Uuid> = HashSet::new();
-        let mut balance_difference: f64 = 0_f64;
 
-        for position in self.open_positions.iter() {
+        for position in self.position_manager.get_positions() {
             let profit_percentage =
                 ((current_price - position.entry_price) / position.entry_price) * 100_f64;
             trace!("Profit percentage for position {:?}: {:.2}%", position.id, profit_percentage);
@@ -169,10 +172,7 @@ impl Bot {
                     profit_percentage
                 );
 
-                if let Ok(sum) = self.place_order_to_sell(current_price, position).await {
-                    positions_to_close.insert(position.id);
-                    balance_difference += sum;
-                }
+                positions_to_close.insert(position.id);
             } else if profit_percentage >= self.strategy.risk_management.profit_level.into() {
                 info!(
                     "Profit triggered, closing position {} with gained profit: {:.2}%",
@@ -180,10 +180,7 @@ impl Bot {
                     profit_percentage
                 );
 
-                if let Ok(sum) = self.place_order_to_sell(current_price, position).await {
-                    positions_to_close.insert(position.id);
-                    balance_difference += sum;
-                }
+                positions_to_close.insert(position.id);
             } else {
                 let deviation =
                     (current_price - self.short_ma.calculate()) / self.short_ma.calculate();
@@ -196,16 +193,28 @@ impl Bot {
                         deviation
                     );
 
-                    if let Ok(sum) = self.place_order_to_sell(current_price, position).await {
-                        positions_to_close.insert(position.id);
-                        balance_difference += sum;
-                    }
+                    positions_to_close.insert(position.id);
                 }
             }
         }
 
-        self.update_balance(balance_difference);
-        self.open_positions.retain(|position| { positions_to_close.contains(&position.id) });
+        for position_id in positions_to_close {
+            match
+                self.position_manager.close_position(
+                    position_id,
+                    current_price,
+                    self.api_client.as_ref()
+                ).await
+            {
+                Ok(sum) => self.update_balance(sum),
+                Err(e) =>
+                    error!(
+                        "Could not create an order to sell for position {:?}: {}",
+                        position_id,
+                        e
+                    ),
+            };
+        }
 
         Ok(())
     }
@@ -215,7 +224,7 @@ impl Bot {
         current_price: f64,
         deviation: f64
     ) -> Result<(), ApiError> {
-        if self.open_positions.len() >= self.strategy.risk_management.max_positions {
+        if self.position_manager.len() >= self.strategy.risk_management.max_positions {
             info!("Max positions reached, not opening new positions");
             return Ok(());
         }
@@ -227,37 +236,24 @@ impl Bot {
                 self.account_balance * f64::from(self.strategy.risk_management.capital_per_trade);
             let quantity = capital_to_use / current_price;
 
-            match self.api_client.place_order_to_buy(&self.strategy.symbol, quantity).await {
-                Ok(position) => {
-                    self.account_balance -= position.entry_price * quantity;
-
-                    info!("Updating open positions with value: {:?}", position);
-                    self.open_positions.push(position);
+            match
+                self.position_manager.open_position(
+                    &self.strategy.symbol,
+                    quantity,
+                    current_price,
+                    self.api_client.as_ref()
+                ).await
+            {
+                Ok(sum) => {
+                    self.update_balance(-sum);
                 }
                 Err(e) => {
-                    error!("Could not create an order to buy: {}", e);
+                    error!("Could not open new position: {}", e);
                 }
             }
         }
 
         Ok(())
-    }
-
-    async fn place_order_to_sell(
-        &self,
-        current_price: f64,
-        position: &Position
-    ) -> Result<f64, ApiError> {
-        match self.api_client.place_order_to_sell(&position.symbol, position.quantity).await {
-            Ok(_) => {
-                trace!("Closing position {:?}", position.id);
-                Ok(current_price * position.quantity)
-            }
-            Err(e) => {
-                error!("Could not create an order to sell for position {:?}: {}", position, e);
-                Err(e)
-            }
-        }
     }
 
     fn update_balance(&mut self, sum: f64) {
