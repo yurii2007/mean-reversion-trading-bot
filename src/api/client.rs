@@ -31,9 +31,13 @@ pub trait ApiClient {
         interval: &'_ Duration
     ) -> Result<ProcessedCandle, ApiError>;
 
-    async fn place_order_to_buy(&self, pair: String, quantity: f64) -> Result<Position, ApiError>;
+    async fn place_order_to_buy(
+        &self,
+        symbol: &'_ str,
+        quantity: f64
+    ) -> Result<Position, ApiError>;
 
-    async fn place_order_to_sell(&self, pair: String, quantity: f64) -> Result<(), ApiError>;
+    async fn place_order_to_sell(&self, symbol: &'_ str, quantity: f64) -> Result<(), ApiError>;
 
     async fn get_account_balance(&self) -> Result<f64, ApiError>;
 }

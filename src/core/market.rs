@@ -6,7 +6,7 @@ use crate::api::binance::response::BinanceResponse;
 #[derive(Debug)]
 pub struct Position {
     pub id: Uuid,
-    pub pair: String,
+    pub symbol: String,
     pub entry_price: f64,
     pub quantity: f64,
     pub timestamp: UtcDateTime,
@@ -23,8 +23,8 @@ pub struct ProcessedCandle {
 }
 
 impl Position {
-    pub fn new(pair: String, entry_price: f64, quantity: f64, timestamp: UtcDateTime) -> Self {
-        Self { id: Uuid::new_v4(), pair, entry_price, quantity, timestamp }
+    pub fn new(symbol: String, entry_price: f64, quantity: f64, timestamp: UtcDateTime) -> Self {
+        Self { id: Uuid::new_v4(), symbol, entry_price, quantity, timestamp }
     }
 }
 
@@ -34,7 +34,6 @@ impl ProcessedCandle {
     }
 }
 
-// todo move this implementation into binance module
 impl From<BinanceResponse> for ProcessedCandle {
     fn from(value: BinanceResponse) -> Self {
         Self {

@@ -2,8 +2,8 @@ symbol = "BTCUSDT"
 pair = "BTC/USDT" 
 
 [timeframe]
-interval = "4h" # Interval to calculate average price
-tick = "1h" # Timeframe for a single bar
+interval = "5m" # Interval to calculate average price
+tick = "1m" # Timeframe for a single bar
 
 [exchange]
 api = "binance" # Which api bot should use to collect data(Currently only binance supported)
@@ -20,5 +20,5 @@ measure_bars = 20 # How many bars bot should consider when calculating average p
 mean_calculation_method="SimpleMA" # Simple MA, EMA, VWAP
 
 [measurement_deviation]
-enter_deviation = 0.15 # Determine on what deviation level bot should buy assets
+enter_deviation = 0.20 # Determine on what deviation level bot should buy assets
 exit_deviation = 0.4 # Determine on what deviation level bot should close it's positions

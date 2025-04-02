@@ -60,9 +60,18 @@ impl Bot {
             )
         ).await?;
 
+        self.candles = candles
+            .into_iter()
+            .map(|candle| {
+                self.long_ma.update(candle.close);
+
+                candle
+            })
+            .collect();
+
         let account_balance = self.api_client.get_account_balance().await?;
 
-        if let Some(latest_candles) = candles.chunks(MA_PERIOD_DIFFERENCE).last() {
+        if let Some(latest_candles) = self.candles.chunks(MA_PERIOD_DIFFERENCE).last() {
             latest_candles.iter().for_each(|candle| {
                 self.short_ma.update(candle.close);
             });
@@ -154,7 +163,11 @@ impl Bot {
             trace!("Profit percentage for position {:?}: {:.2}%", position.id, profit_percentage);
 
             if profit_percentage <= -f64::from(self.strategy.risk_management.stop_loss) {
-                info!("Stop loss triggered, closing position with loss: {:.2}%", profit_percentage);
+                info!(
+                    "Stop loss triggered, closing position {} with loss: {:.2}%",
+                    position.id,
+                    profit_percentage
+                );
 
                 if let Ok(sum) = self.place_order_to_sell(current_price, position).await {
                     positions_to_close.insert(position.id);
@@ -162,7 +175,8 @@ impl Bot {
                 }
             } else if profit_percentage >= self.strategy.risk_management.profit_level.into() {
                 info!(
-                    "Profit triggered, closing position with gained profit: {:.2}%",
+                    "Profit triggered, closing position {} with gained profit: {:.2}%",
+                    position.id,
                     profit_percentage
                 );
 
@@ -206,14 +220,14 @@ impl Bot {
             return Ok(());
         }
 
-        if deviation <= -(self.strategy.measurement_deviation.enter_deviation as f64) / 100.0 {
+        if deviation <= -(self.strategy.measurement_deviation.enter_deviation as f64) {
             info!("Entry signal detected! Deviation: {:.2}%", deviation);
 
             let capital_to_use =
                 self.account_balance * f64::from(self.strategy.risk_management.capital_per_trade);
             let quantity = capital_to_use / current_price;
 
-            match self.api_client.place_order_to_buy(self.strategy.pair.clone(), quantity).await {
+            match self.api_client.place_order_to_buy(&self.strategy.symbol, quantity).await {
                 Ok(position) => {
                     self.account_balance -= position.entry_price * quantity;
 
@@ -234,7 +248,7 @@ impl Bot {
         current_price: f64,
         position: &Position
     ) -> Result<f64, ApiError> {
-        match self.api_client.place_order_to_sell(position.pair.clone(), position.quantity).await {
+        match self.api_client.place_order_to_sell(&position.symbol, position.quantity).await {
             Ok(_) => {
                 trace!("Closing position {:?}", position.id);
                 Ok(current_price * position.quantity)
@@ -247,6 +261,7 @@ impl Bot {
     }
 
     fn update_balance(&mut self, sum: f64) {
+        debug!("Updating balance with sum: {}", sum);
         self.account_balance += sum;
     }
 }

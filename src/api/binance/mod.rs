@@ -5,13 +5,15 @@ use binance_spot_connector_rust::{
     http::{ request::Request, Credentials },
     hyper::BinanceHttpClient,
     market::klines::Klines,
+    trade,
     wallet::balance,
 };
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
 use response::BinanceResponse;
+use rust_decimal::{ Decimal, prelude::FromPrimitive };
 use time::UtcDateTime;
-use tracing::{ debug, warn };
+use tracing::{ debug, info, warn };
 
 use crate::{
     api::client::{ ApiClient, KLineParams },
@@ -30,6 +32,8 @@ pub struct BinanceApi {
 }
 
 impl BinanceApi {
+    const QUANTITY_FLOAT_PRECISION: u32 = 5;
+
     pub fn new() -> Self {
         let credentials = Credentials::from_hmac(
             dotenv::var(ENV_BINANCE_API_KEY).expect("BINANCE_API_KEY is missing"),
@@ -46,15 +50,21 @@ impl BinanceApi {
 
         debug!("Requesting Kline data from binance with params: {:?}", request.params());
 
-        let response = self.client
-            .send(request).await
-            .map_err(ApiError::from)?
-            .into_body_str().await
-            .map_err(ApiError::from)?;
+        let response = self.client.send(request).await?.into_body_str().await?;
 
         let raw_kline_data = BinanceResponse::deserialize_response(Cow::from(response)).unwrap();
 
         Ok(raw_kline_data)
+    }
+
+    fn get_decimal_quantity(quantity: f64) -> Result<Decimal, ApiError> {
+        let mut decimal = Decimal::from_f64(quantity).ok_or(
+            ApiError::ParseError("Failed to parse quantity when creating an order".to_string())
+        )?;
+
+        decimal.rescale(BinanceApi::QUANTITY_FLOAT_PRECISION);
+
+        Ok(decimal)
     }
 }
 
@@ -92,14 +102,37 @@ impl ApiClient for BinanceApi {
         Ok(ProcessedCandle::from(&response[0]))
     }
 
-    async fn place_order_to_buy(&self, pair: String, quantity: f64) -> Result<Position, ApiError> {
-        warn!("UNIMPLEMENTED: should place order to buy for {} {}", quantity, pair);
+    async fn place_order_to_buy(&self, symbol: &str, quantity: f64) -> Result<Position, ApiError> {
+        let decimal_quantity = BinanceApi::get_decimal_quantity(quantity)?;
 
-        Ok(Position::new(pair, 83_600_f64, quantity, UtcDateTime::now()))
+        // let order = trade
+        //     ::new_order(&pair, trade::order::Side::Sell, "MARKET")
+        //     .quantity(decimal_quantity);
+
+        let order = trade
+            ::new_order_test(symbol, trade::order::Side::Buy, "MARKET")
+            .quantity(decimal_quantity);
+
+        info!("Created order to buy for {} {}", symbol, quantity);
+
+        self.client.send(order).await?;
+
+        Ok(Position::new(symbol.to_string(), 83_600_f64, quantity, UtcDateTime::now()))
     }
 
-    async fn place_order_to_sell(&self, pair: String, quantity: f64) -> Result<(), ApiError> {
-        warn!("UNIMPLEMENTED: should place order to sell for {} {}", quantity, pair);
+    async fn place_order_to_sell(&self, symbol: &str, quantity: f64) -> Result<(), ApiError> {
+        let decimal_quantity = BinanceApi::get_decimal_quantity(quantity)?;
+
+        // let order = trade
+        //     ::new_order(&pair, trade::order::Side::Sell, "MARKET")
+        //     .quantity(decimal_quantity);
+
+        let order = trade
+            ::new_order_test(symbol, trade::order::Side::Sell, "MARKET")
+            .quantity(decimal_quantity);
+
+        info!("Created order to Sell for {} {}", symbol, quantity);
+        self.client.send(order).await?;
 
         Ok(())
     }

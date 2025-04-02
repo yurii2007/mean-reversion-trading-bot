@@ -21,7 +21,5 @@ async fn main() -> Result<(), ApiError> {
 
     let mut bot = Bot::new(strategy);
 
-    bot.initialize().await?;
-
     bot.run().await
 }
