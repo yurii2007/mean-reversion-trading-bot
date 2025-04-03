@@ -42,7 +42,6 @@ pub struct RiskManagement {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MeasurementDeviation {
     pub enter_deviation: f32,
-    pub exit_deviation: f32,
 }
 
 impl Strategy {
@@ -109,7 +108,6 @@ profit_level = 0.15
 
 [measurement_deviation]
 enter_deviation = 0.1
-exit_deviation = 0.1
             "#;
         let temp_config_file = create_tmp_test_config(valid_toml_config);
         let path = temp_config_file.path().to_str().unwrap();
@@ -135,7 +133,6 @@ exit_deviation = 0.1
         assert_eq!(strategy.risk_management.stop_loss, 0.3);
         assert_eq!(strategy.risk_management.profit_level, 0.15);
 
-        assert_eq!(strategy.measurement_deviation.exit_deviation, 0.1);
         assert_eq!(strategy.measurement_deviation.enter_deviation, 0.1);
     }
 
@@ -187,7 +184,6 @@ profit_level = 0.04
 
 [measurement_deviation]
 enter_deviation = 0.01
-exit_deviation = 0.015
         "#;
 
         let temp_file = create_tmp_test_config(invalid_types_toml_config);

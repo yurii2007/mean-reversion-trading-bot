@@ -129,10 +129,11 @@ impl Bot {
 
         info!("Updated MA: {{short: {}, long: {}}}", short_ma, long_ma);
 
-        let deviation = ((short_ma - long_ma) / long_ma) * 100_f64;
+        let deviation =
+            ((self.short_ma.calculate() - self.long_ma.calculate()) / long_ma) * 100_f64;
         info!("Current mean deviation: {}", deviation);
 
-        self.check_exit_signals(latest_candle.close).await?;
+        self.check_exit_signals(latest_candle.close, deviation).await?;
         self.check_entry_signal(latest_candle.close, deviation).await?;
 
         self.candles.push(ProcessedCandle::from(latest_candle));
@@ -153,7 +154,11 @@ impl Bot {
         Ok(())
     }
 
-    async fn check_exit_signals(&mut self, current_price: f64) -> Result<(), ApiError> {
+    async fn check_exit_signals(
+        &mut self,
+        current_price: f64,
+        deviation: f64
+    ) -> Result<(), ApiError> {
         if self.position_manager.is_empty() {
             return Ok(());
         }
@@ -173,7 +178,7 @@ impl Bot {
                 );
 
                 positions_to_close.insert(position.id);
-            } else if profit_percentage >= self.strategy.risk_management.profit_level.into() {
+            } else if deviation >= self.strategy.risk_management.profit_level.into() {
                 info!(
                     "Profit triggered, closing position {} with gained profit: {:.2}%",
                     position.id,
@@ -182,10 +187,7 @@ impl Bot {
 
                 positions_to_close.insert(position.id);
             } else {
-                let deviation =
-                    (current_price - self.short_ma.calculate()) / self.short_ma.calculate();
-
-                trace!("Checking deviation for extreme value: {:.2}", deviation);
+                debug!("Checking deviation for extreme value: {:.2}", deviation);
 
                 if deviation >= self.strategy.risk_management.max_drawdown.into() {
                     info!(
