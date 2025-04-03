@@ -4,7 +4,6 @@ use binance_spot_connector_rust::market::klines::KlineInterval;
 use serde::{ de::Visitor, Deserialize, Deserializer, Serialize, Serializer };
 
 use crate::api::error::ApiError;
-
 use super::mean_calculation::MeanCalculationMethod;
 
 #[derive(Deserialize, Serialize)]

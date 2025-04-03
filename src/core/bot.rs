@@ -1,8 +1,7 @@
-use std::{ collections::HashSet, time::Duration };
+use std::time::Duration;
 
 use tokio::time::sleep;
-use tracing::{ debug, error, info, trace };
-use uuid::Uuid;
+use tracing::{ debug, error, info };
 
 use crate::{
     api::{ client::{ ApiClient, KLineParams }, error::ApiError },
@@ -12,8 +11,7 @@ use crate::{
         timeframe::duration_from_kline_interval,
     },
 };
-
-use super::{ market::ProcessedCandle, position_manager::PositionManager };
+use super::{ market::ProcessedCandle, trading_strategy::TradingStrategy };
 
 const MA_PERIOD_DIFFERENCE: usize = 3;
 const TRADINC_CYCLE_RECOVERY_PERIOD: u64 = 30;
@@ -21,11 +19,11 @@ const TRADINC_CYCLE_RECOVERY_PERIOD: u64 = 30;
 pub struct Bot {
     strategy: Strategy,
     api_client: Box<dyn ApiClient>,
-    position_manager: PositionManager,
     long_ma: MaTracker,
     short_ma: MaTracker,
     candles: Vec<ProcessedCandle>,
     account_balance: f64,
+    trading_strategy: TradingStrategy,
 }
 
 impl Bot {
@@ -36,7 +34,7 @@ impl Bot {
 
         Self {
             api_client: Box::new(api_client),
-            position_manager: PositionManager::new(strategy.risk_management.max_positions),
+            trading_strategy: TradingStrategy::new(strategy.risk_management.max_positions),
             account_balance: 0_f64,
             candles: Vec::new(),
             long_ma: MaTracker::new(
@@ -121,11 +119,14 @@ impl Bot {
             &self.strategy.symbol,
             &self.strategy.timeframe.tick
         ).await?;
+        let current_price = latest_candle.close;
 
         info!("Received the latest candle: {:?}", latest_candle);
 
-        let short_ma = self.short_ma.update(latest_candle.close);
-        let long_ma = self.long_ma.update(latest_candle.close);
+        self.insert_candle(latest_candle);
+
+        let short_ma = self.short_ma.update(current_price);
+        let long_ma = self.long_ma.update(current_price);
 
         info!("Updated MA: {{short: {}, long: {}}}", short_ma, long_ma);
 
@@ -133,127 +134,30 @@ impl Bot {
             ((self.short_ma.calculate() - self.long_ma.calculate()) / long_ma) * 100_f64;
         info!("Current mean deviation: {}", deviation);
 
-        self.check_exit_signals(latest_candle.close, deviation).await?;
-        self.check_entry_signal(latest_candle.close, deviation).await?;
+        let balance_difference = self.trading_strategy.check_exit_signals(
+            current_price,
+            deviation,
+            &self.strategy,
+            self.api_client.as_ref()
+        ).await?;
 
-        self.candles.push(ProcessedCandle::from(latest_candle));
+        self.update_balance(balance_difference);
 
-        if
-            self.candles.len() >
-            self.strategy.timeframe.period_measurement.measure_bars * MA_PERIOD_DIFFERENCE
-        {
-            self.candles.remove(0);
-        }
+        let balance_difference = self.trading_strategy.check_entry_signals(
+            current_price,
+            deviation,
+            self.account_balance,
+            &self.strategy,
+            self.api_client.as_ref()
+        ).await?;
+
+        self.update_balance(balance_difference);
 
         info!(
             "Trading cycle executed, current balance: {}\nopen positions: {}",
             self.account_balance,
-            self.position_manager.len()
+            self.trading_strategy.open_positions_count()
         );
-
-        Ok(())
-    }
-
-    async fn check_exit_signals(
-        &mut self,
-        current_price: f64,
-        deviation: f64
-    ) -> Result<(), ApiError> {
-        if self.position_manager.is_empty() {
-            return Ok(());
-        }
-
-        let mut positions_to_close: HashSet<Uuid> = HashSet::new();
-
-        for position in self.position_manager.get_positions() {
-            let profit_percentage =
-                ((current_price - position.entry_price) / position.entry_price) * 100_f64;
-            trace!("Profit percentage for position {:?}: {:.2}%", position.id, profit_percentage);
-
-            if profit_percentage <= -f64::from(self.strategy.risk_management.stop_loss) {
-                info!(
-                    "Stop loss triggered, closing position {} with loss: {:.2}%",
-                    position.id,
-                    profit_percentage
-                );
-
-                positions_to_close.insert(position.id);
-            } else if deviation >= self.strategy.risk_management.profit_level.into() {
-                info!(
-                    "Profit triggered, closing position {} with gained profit: {:.2}%",
-                    position.id,
-                    profit_percentage
-                );
-
-                positions_to_close.insert(position.id);
-            } else {
-                debug!("Checking deviation for extreme value: {:.2}", deviation);
-
-                if deviation >= self.strategy.risk_management.max_drawdown.into() {
-                    info!(
-                        "Mean Reversion exit triggered for unstable deviation, deviation: {:.2}%",
-                        deviation
-                    );
-
-                    positions_to_close.insert(position.id);
-                }
-            }
-        }
-
-        for position_id in positions_to_close {
-            match
-                self.position_manager.close_position(
-                    position_id,
-                    current_price,
-                    self.api_client.as_ref()
-                ).await
-            {
-                Ok(sum) => self.update_balance(sum),
-                Err(e) =>
-                    error!(
-                        "Could not create an order to sell for position {:?}: {}",
-                        position_id,
-                        e
-                    ),
-            };
-        }
-
-        Ok(())
-    }
-
-    async fn check_entry_signal(
-        &mut self,
-        current_price: f64,
-        deviation: f64
-    ) -> Result<(), ApiError> {
-        if self.position_manager.len() >= self.strategy.risk_management.max_positions {
-            info!("Max positions reached, not opening new positions");
-            return Ok(());
-        }
-
-        if deviation <= -(self.strategy.measurement_deviation.enter_deviation as f64) {
-            info!("Entry signal detected! Deviation: {:.2}%", deviation);
-
-            let capital_to_use =
-                self.account_balance * f64::from(self.strategy.risk_management.capital_per_trade);
-            let quantity = capital_to_use / current_price;
-
-            match
-                self.position_manager.open_position(
-                    &self.strategy.symbol,
-                    quantity,
-                    current_price,
-                    self.api_client.as_ref()
-                ).await
-            {
-                Ok(sum) => {
-                    self.update_balance(-sum);
-                }
-                Err(e) => {
-                    error!("Could not open new position: {}", e);
-                }
-            }
-        }
 
         Ok(())
     }
@@ -261,5 +165,16 @@ impl Bot {
     fn update_balance(&mut self, sum: f64) {
         debug!("Updating balance with sum: {}", sum);
         self.account_balance += sum;
+    }
+
+    fn insert_candle(&mut self, candle: ProcessedCandle) {
+        self.candles.push(candle);
+
+        if
+            self.candles.len() >
+            self.strategy.timeframe.period_measurement.measure_bars * MA_PERIOD_DIFFERENCE
+        {
+            self.candles.remove(0);
+        }
     }
 }

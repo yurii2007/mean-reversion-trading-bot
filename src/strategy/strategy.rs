@@ -5,7 +5,6 @@ use serde::{ Deserialize, Serialize };
 use tracing::{ error, trace };
 
 use crate::api::supported_api::Api;
-
 use super::timeframe::StrategyTimeframe;
 
 const CONFIG_FILE_PATH: &'static str = "strategy.toml";
