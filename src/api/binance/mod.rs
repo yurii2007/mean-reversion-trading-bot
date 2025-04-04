@@ -6,11 +6,10 @@ use binance_spot_connector_rust::{
     hyper::BinanceHttpClient,
     market::klines::Klines,
     trade,
-    wallet::balance,
+    wallet::user_asset::UserAsset,
 };
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
-use response::BinanceResponse;
 use rust_decimal::{ Decimal, prelude::FromPrimitive };
 use time::UtcDateTime;
 use tracing::{ debug, info, warn };
@@ -21,7 +20,9 @@ use crate::{
     strategy::timeframe::duration_into_kline_interval,
     ApiError,
 };
+use response::{ BinanceResponse, BalanceResponse };
 
+// todo Should not be public
 pub mod response;
 
 const ENV_BINANCE_API_KEY: &str = "BINANCE_API_KEY";
@@ -134,12 +135,22 @@ impl ApiClient for BinanceApi {
         Ok(())
     }
 
-    async fn get_account_balance(&self) -> Result<f64, ApiError> {
-        let account_data_request = balance();
-        let account_data = self.client.send(account_data_request).await?.into_body_str().await?;
+    async fn get_account_balance(&self, symbol: &'_ str) -> Result<f64, ApiError> {
+        let user_asset_request = UserAsset::new().asset(symbol);
+        let user_asset_response = self.client
+            .send(user_asset_request).await?
+            .into_body_str().await?;
 
-        warn!("account data response: {:?}", account_data);
+        let assets = BalanceResponse::deserialize_response(Cow::from(user_asset_response)).map_err(
+            ApiError::ParseError
+        )?;
 
-        Ok(100_f64)
+        warn!("account data response: {:?}", assets);
+
+        let account_balance = assets
+            .get(0)
+            .ok_or(ApiError::ValidationError("Empty balance data received".to_string()))?;
+
+        Ok(account_balance.free)
     }
 }

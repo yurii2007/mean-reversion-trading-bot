@@ -1,5 +1,6 @@
 symbol = "BTCUSDT"
 pair = "BTC/USDT" 
+trading_symbol = "USDT"
 
 [timeframe]
 interval = "2h" # Interval to calculate average price

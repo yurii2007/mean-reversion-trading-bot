@@ -13,6 +13,8 @@ const CONFIG_FILE_PATH: &'static str = "strategy.toml";
 pub struct Strategy {
     pub symbol: String,
 
+    pub trading_symbol: String,
+
     pub pair: String,
 
     pub exchange: Exchange,
@@ -54,12 +56,18 @@ impl Strategy {
             })
             .unwrap();
 
-        config
+        let strategy = config
             .try_deserialize::<Strategy>()
             .inspect_err(|e| {
                 error!("Failed to deserialize strategy configuration: {}", e);
             })
-            .unwrap()
+            .unwrap();
+
+        if strategy.symbol == strategy.trading_symbol {
+            panic!("Invalid strategy: symbol and trading_symbol cannot be the same");
+        }
+
+        strategy
     }
 }
 
@@ -86,6 +94,7 @@ mod tests {
             r#"
 symbol = "BTCUSDT"
 pair = "BTC/USDT"
+trading_symbol = "USDT"
 
 [timeframe]
 interval = "1h"

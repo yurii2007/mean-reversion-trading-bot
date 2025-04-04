@@ -19,6 +19,24 @@ pub struct BinanceResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct BalanceResponse {
+    asset: String,
+    #[serde(deserialize_with = "deserialize_float")]
+    pub free: f64,
+    #[serde(deserialize_with = "deserialize_float")]
+    locked: f64,
+    #[serde(deserialize_with = "deserialize_float")]
+    freeze: f64,
+    #[serde(deserialize_with = "deserialize_float")]
+    withdrawing: f64,
+    #[serde(deserialize_with = "deserialize_float")]
+    ipoable: f64,
+    #[serde(rename = "btcValuation", deserialize_with = "deserialize_float")]
+    btc_valuation: f64,
+}
+
+#[derive(Debug, Deserialize)]
 struct RawResponse(
     #[serde(deserialize_with = "deserialize_timestamp")] UtcDateTime,
     #[serde(deserialize_with = "deserialize_float")] f64,
@@ -69,6 +87,14 @@ impl From<RawResponse> for BinanceResponse {
             taker_buy_base_asset_vol,
             taker_buy_quote_asset_vol,
         }
+    }
+}
+
+impl BalanceResponse {
+    pub fn deserialize_response(json_data: Cow<'_, str>) -> Result<Vec<Self>, String> {
+        let balance_response: Vec<BalanceResponse> = serde_json::from_str(&json_data).unwrap();
+
+        Ok(balance_response)
     }
 }
 

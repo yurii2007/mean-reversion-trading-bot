@@ -40,7 +40,7 @@ pub trait ApiClient {
 
     async fn place_order_to_sell(&self, symbol: &'_ str, quantity: f64) -> Result<(), ApiError>;
 
-    async fn get_account_balance(&self) -> Result<f64, ApiError>;
+    async fn get_account_balance(&self, symbol: &'_ str) -> Result<f64, ApiError>;
 }
 
 impl KLineParams {

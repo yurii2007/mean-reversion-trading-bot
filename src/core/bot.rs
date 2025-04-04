@@ -67,7 +67,9 @@ impl Bot {
             })
             .collect();
 
-        let account_balance = self.api_client.get_account_balance().await?;
+        let account_balance = self.api_client.get_account_balance(
+            &self.strategy.trading_symbol
+        ).await?;
 
         if let Some(latest_candles) = self.candles.chunks(MA_PERIOD_DIFFERENCE).last() {
             latest_candles.iter().for_each(|candle| {
@@ -103,12 +105,13 @@ impl Bot {
 
         loop {
             info!("Waiting for the next execution cycle");
-            interval.tick().await;
 
             if let Err(e) = self.execute_trading_cycle().await {
                 error!("Error executing trading cycle: {}", e);
                 sleep(Duration::from_secs(TRADINC_CYCLE_RECOVERY_PERIOD)).await;
             }
+
+            interval.tick().await;
         }
     }
 
