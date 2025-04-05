@@ -105,8 +105,8 @@ profit_level = 0.2
 | `capital_per_trade` | `float` (0.0 - 1.0) | Fraction of your total capital used per trade.    | `0.1` = 10% of available capital       |
 | `max_positions`     | `integer`           | Maximum number of concurrent open positions       | `5` = Never hold more than 5 positions |
 | `max_drawdown`      | `float`             | Percentage drawdown to trigger trading suspension | `3.5` = Stop new trades if down 3.5%   |
-| `stop_loss`         | `float`             | Percentage loss at which to exit positions        | `0.5` = Exit if position loses 0.5%    |
-| `profit_level`      | `float`             | Percentage gain at which to take profit           | `0.2` = Exit when position gains 0.2%  |
+| `stop_loss`         | `float`             | Percentage loss at which to exit positions        | `0.05` = Exit if position loses 5%    |
+| `profit_level`      | `float`             | Percentage gain at which to take profit           | `0.2` = Exit when position gains 20%  |
 
 
 ## Mean Calculation
@@ -149,7 +149,7 @@ enter_deviation = 0.15
 
 ## Notes
 
-- All percentage values are in decimals. For example, 0.5 = 0.5%
+- All percentage values are in decimal form. For example, 0.5 = 50%
 - Do not specify any negative values in config, they would be automatically converted during trading cycles.
 - Config is live-loaded on startup; changes require a restart of the bot.
 
