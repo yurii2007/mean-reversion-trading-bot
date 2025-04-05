@@ -53,7 +53,7 @@ impl BinanceApi {
 
         let response = self.client.send(request).await?.into_body_str().await?;
 
-        let raw_kline_data = BinanceResponse::deserialize_response(Cow::from(response)).unwrap();
+        let raw_kline_data = BinanceResponse::deserialize_response(Cow::from(response))?;
 
         Ok(raw_kline_data)
     }
@@ -141,9 +141,7 @@ impl ApiClient for BinanceApi {
             .send(user_asset_request).await?
             .into_body_str().await?;
 
-        let assets = BalanceResponse::deserialize_response(Cow::from(user_asset_response)).map_err(
-            ApiError::ParseError
-        )?;
+        let assets = BalanceResponse::deserialize_response(Cow::from(user_asset_response))?;
 
         warn!("account data response: {:?}", assets);
 

@@ -3,6 +3,8 @@ use std::{ borrow::Cow, fmt };
 use serde::{ de::Visitor, Deserialize, Deserializer };
 use time::UtcDateTime;
 
+use crate::api::error::ApiError;
+
 #[derive(Debug)]
 pub struct BinanceResponse {
     pub open_timestamp: UtcDateTime,
@@ -53,8 +55,8 @@ struct RawResponse(
 );
 
 impl BinanceResponse {
-    pub fn deserialize_response(json_data: Cow<'_, str>) -> Result<Vec<Self>, String> {
-        let raw_response: Vec<RawResponse> = serde_json::from_str(&json_data).unwrap();
+    pub fn deserialize_response(json_data: Cow<'_, str>) -> Result<Vec<Self>, ApiError> {
+        let raw_response: Vec<RawResponse> = serde_json::from_str(&json_data)?;
 
         Ok(raw_response.into_iter().map(Self::from).collect())
     }
@@ -91,8 +93,8 @@ impl From<RawResponse> for BinanceResponse {
 }
 
 impl BalanceResponse {
-    pub fn deserialize_response(json_data: Cow<'_, str>) -> Result<Vec<Self>, String> {
-        let balance_response: Vec<BalanceResponse> = serde_json::from_str(&json_data).unwrap();
+    pub fn deserialize_response(json_data: Cow<'_, str>) -> Result<Vec<Self>, ApiError> {
+        let balance_response: Vec<BalanceResponse> = serde_json::from_str(&json_data)?;
 
         Ok(balance_response)
     }
