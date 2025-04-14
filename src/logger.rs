@@ -25,7 +25,7 @@ pub fn init_logger() {
         .with_thread_names(true)
         .with_timer(UtcTime::rfc_3339())
         .with_level(true)
-        .with_filter(EnvFilter::new("solana_bot=INFO"));
+        .with_filter(EnvFilter::from("INFO"));
 
     let error_log_file = get_error_log_file();
 
@@ -35,7 +35,7 @@ pub fn init_logger() {
         .with_target(true)
         .with_file(true)
         .with_thread_names(true)
-        .with_filter(EnvFilter::new("ERROR"));
+        .with_filter(EnvFilter::from("ERROR"));
 
     let debug_layer = layer()
         .with_timer(UtcTime::rfc_3339())

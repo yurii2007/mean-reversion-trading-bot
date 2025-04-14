@@ -1,23 +1,25 @@
 use logger::init_logger;
 use tracing::info;
+use dotenv::dotenv;
 
 use strategy::strategy::Strategy;
-use api::binance::BinanceApi;
+use api::error::ApiError;
+use core::bot::Bot;
 
 pub mod api;
 pub mod logger;
 pub mod strategy;
+pub mod core;
 
 #[tokio::main]
-async fn main() -> Result<(), binance_spot_connector_rust::hyper::Error> {
+async fn main() -> Result<(), ApiError> {
+    dotenv().unwrap();
     init_logger();
 
     let strategy = Strategy::new();
     info!("Loaded strategy configuration: {:?}", strategy);
 
-    let data = BinanceApi::get_data().await?;
+    let mut bot = Bot::new(strategy);
 
-    info!("DATA: {:?}", data);
-
-    Ok(())
+    bot.run().await
 }
