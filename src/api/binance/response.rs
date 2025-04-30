@@ -105,7 +105,7 @@ fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<UtcDateTime, D::Erro
 {
     struct TimestampVisitor;
 
-    impl<'de> Visitor<'de> for TimestampVisitor {
+    impl Visitor<'_> for TimestampVisitor {
         type Value = UtcDateTime;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -123,7 +123,7 @@ fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<UtcDateTime, D::Erro
 fn deserialize_float<'de, D>(deserializer: D) -> Result<f64, D::Error> where D: Deserializer<'de> {
     struct FloatVisitor;
 
-    impl<'de> Visitor<'de> for FloatVisitor {
+    impl Visitor<'_> for FloatVisitor {
         type Value = f64;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

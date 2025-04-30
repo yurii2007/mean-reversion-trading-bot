@@ -7,7 +7,7 @@ use tracing::{ error, trace };
 use crate::api::supported_api::Api;
 use super::timeframe::StrategyTimeframe;
 
-const CONFIG_FILE_PATH: &'static str = "strategy.toml";
+const CONFIG_FILE_PATH: &str = "strategy.toml";
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Strategy {
@@ -68,6 +68,12 @@ impl Strategy {
         }
 
         strategy
+    }
+}
+
+impl Default for Strategy {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

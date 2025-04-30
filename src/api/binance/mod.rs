@@ -69,6 +69,12 @@ impl BinanceApi {
     }
 }
 
+impl Default for BinanceApi {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl ApiClient for BinanceApi {
     async fn get_candles(&self, params: KLineParams) -> Result<Vec<ProcessedCandle>, ApiError> {
@@ -146,7 +152,7 @@ impl ApiClient for BinanceApi {
         warn!("account data response: {:?}", assets);
 
         let account_balance = assets
-            .get(0)
+            .first()
             .ok_or(ApiError::ValidationError("Empty balance data received".to_string()))?;
 
         Ok(account_balance.free)

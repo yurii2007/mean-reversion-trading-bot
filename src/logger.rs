@@ -12,7 +12,7 @@ use tracing_subscriber::{
     Layer,
 };
 
-const LOGS_DIRECTORY: &'static str = "logs";
+const LOGS_DIRECTORY: &str = "logs";
 
 pub fn init_logger() {
     init_logs_directory();

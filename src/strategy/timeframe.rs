@@ -42,7 +42,7 @@ fn deserialize_kline_interval<'de, D>(deserializer: D) -> Result<KlineInterval, 
 {
     struct StrVisitor;
 
-    impl<'de> Visitor<'de> for StrVisitor {
+    impl Visitor<'_> for StrVisitor {
         type Value = KlineInterval;
 
         fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -63,7 +63,7 @@ fn serialize_kline_interval<S>(val: &KlineInterval, s: S) -> Result<S::Ok, S::Er
     s.serialize_str(&val.to_string())
 }
 
-fn map_string_to_kline<'a>(str: &'a str) -> Result<KlineInterval, ApiError> {
+fn map_string_to_kline(str: &str) -> Result<KlineInterval, ApiError> {
     match str {
         "1m" => Ok(KlineInterval::Minutes1),
         "3m" => Ok(KlineInterval::Minutes3),
