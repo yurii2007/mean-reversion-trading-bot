@@ -1,0 +1,20 @@
+name: Cargo build & test
+
+on:
+  pull_request:
+
+jobs:
+  build_and_test:
+    name: Mean Reversion Bot - latest
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - stable
+    
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      - run: cargo check --verbose
+      - run: cargo test --verbose
+      - run: cargo build --verbose
