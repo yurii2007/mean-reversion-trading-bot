@@ -63,9 +63,10 @@ impl Strategy {
             })
             .unwrap();
 
-        if strategy.symbol == strategy.trading_symbol {
-            panic!("Invalid strategy: symbol and trading_symbol cannot be the same");
-        }
+        assert!(
+            strategy.symbol != strategy.trading_symbol,
+            "Invalid strategy configuration: symbol and trading_symbol cannot be the same"
+        );
 
         strategy
     }

@@ -72,9 +72,9 @@ impl Bot {
         ).await?;
 
         if let Some(latest_candles) = self.candles.chunks(MA_PERIOD_DIFFERENCE).last() {
-            latest_candles.iter().for_each(|candle| {
+            for candle in latest_candles.iter() {
                 self.short_ma.update(candle.close);
-            });
+            }
         }
 
         self.candles.iter().for_each(|candle| {

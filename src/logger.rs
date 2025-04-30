@@ -59,7 +59,7 @@ fn get_log_file(filename: &str) -> File {
         .read(true)
         .append(true)
         .create(true)
-        .open(format!("{}/{}.log", LOGS_DIRECTORY, filename))
+        .open(format!("{LOGS_DIRECTORY}/{filename}.log"))
         .unwrap()
 }
 

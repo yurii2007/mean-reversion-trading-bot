@@ -18,3 +18,4 @@ jobs:
       - run: cargo check --verbose
       - run: cargo test --verbose
       - run: cargo build --verbose
+      - run: cargo clippy

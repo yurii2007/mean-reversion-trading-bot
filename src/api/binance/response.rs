@@ -113,7 +113,7 @@ fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<UtcDateTime, D::Erro
         }
 
         fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E> where E: serde::de::Error {
-            UtcDateTime::from_unix_timestamp_nanos((v as i128) * 1_000_000).map_err(E::custom)
+            UtcDateTime::from_unix_timestamp_nanos(i128::from(v) * 1_000_000).map_err(E::custom)
         }
     }
 
