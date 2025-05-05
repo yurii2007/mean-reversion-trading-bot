@@ -30,7 +30,7 @@ impl TradingStrategy {
             return Ok(0_f64);
         }
 
-        if deviation <= -(strategy.measurement_deviation.enter_deviation as f64) {
+        if deviation <= -f64::from(strategy.measurement_deviation.enter_deviation) {
             info!("Entry signal detected! Deviation: {:.2}%", deviation);
 
             let capital_to_use =

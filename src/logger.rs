@@ -12,7 +12,7 @@ use tracing_subscriber::{
     Layer,
 };
 
-const LOGS_DIRECTORY: &'static str = "logs";
+const LOGS_DIRECTORY: &str = "logs";
 
 pub fn init_logger() {
     init_logs_directory();
@@ -59,7 +59,7 @@ fn get_log_file(filename: &str) -> File {
         .read(true)
         .append(true)
         .create(true)
-        .open(format!("{}/{}.log", LOGS_DIRECTORY, filename))
+        .open(format!("{LOGS_DIRECTORY}/{filename}.log"))
         .unwrap()
 }
 

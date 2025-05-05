@@ -52,7 +52,7 @@ impl PositionManager {
     ) -> Result<f64, ApiError> {
         let position = self.open_positions
             .get(&position_id)
-            .ok_or(ApiError::NotFound(format!("Position with id {} not found", position_id)))?;
+            .ok_or(ApiError::NotFound(format!("Position with id {position_id} not found")))?;
         let sell_price = current_price * position.quantity;
 
         client.place_order_to_sell(&position.symbol, position.quantity).await?;
