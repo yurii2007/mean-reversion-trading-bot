@@ -211,4 +211,28 @@ enter_deviation = 0.01
 
         assert!(config.is_err());
     }
+
+    #[test]
+    fn test_default_strategy() {
+        let strategy = Strategy::default();
+
+        assert_eq!(strategy.symbol, "BTCUSDT");
+        assert_eq!(strategy.trading_symbol, "USDT");
+        assert_eq!(strategy.pair, "BTC/USDT");
+
+        assert_eq!(strategy.exchange.api, "binance");
+
+        assert_eq!(strategy.timeframe.interval, "2h");
+        assert_eq!(strategy.timeframe.tick, Duration::from_secs(1800));
+        assert_eq!(strategy.timeframe.period_measurement.measure_bars, 20);
+        assert_eq!(strategy.timeframe.period_measurement.mean_calculation_method, "SimpleMA");
+
+        assert_eq!(strategy.risk_management.capital_per_trade, 0.1);
+        assert_eq!(strategy.risk_management.max_positions, 5);
+        assert_eq!(strategy.risk_management.max_drawdown, 3.5);
+        assert_eq!(strategy.risk_management.stop_loss, 0.5);
+        assert_eq!(strategy.risk_management.profit_level, 0.2);
+
+        assert_eq!(strategy.measurement_deviation.enter_deviation, 0.15);
+    }
 }

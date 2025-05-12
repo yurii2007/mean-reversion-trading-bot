@@ -13,3 +13,5 @@ logs/
 # Added by cargo
 
 /target
+
+test-coverage/

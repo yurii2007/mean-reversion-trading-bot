@@ -15,7 +15,7 @@ use tracing_subscriber::{
 const LOGS_DIRECTORY: &str = "logs";
 
 pub fn init_logger() {
-    init_logs_directory();
+    init_logs_directory(LOGS_DIRECTORY);
     let info_log_file = get_info_log_file();
 
     let info_layer = layer()
@@ -63,6 +63,25 @@ fn get_log_file(filename: &str) -> File {
         .unwrap()
 }
 
-fn init_logs_directory() {
-    DirBuilder::new().recursive(true).create(LOGS_DIRECTORY).unwrap();
+fn init_logs_directory(dir_path: &str) {
+    DirBuilder::new().recursive(true).create(dir_path).unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use tempfile::{ TempDir, TempPath };
+    use super::*;
+
+    #[test]
+    fn test_init_logs_directory() {
+        let tmp_dir = TempDir::new().unwrap();
+        let mut tmp_path_str = String::from(tmp_dir.path().to_str().unwrap());
+
+        tmp_path_str.push_str("logs");
+        let path = TempPath::from_path(tmp_path_str);
+
+        init_logs_directory(path.to_str().unwrap());
+
+        assert!(path.is_dir());
+    }
 }
