@@ -16,7 +16,7 @@ const LOGS_DIRECTORY: &str = "logs";
 
 pub fn init_logger() {
     init_logs_directory(LOGS_DIRECTORY);
-    let info_log_file = get_info_log_file();
+    let info_log_file = get_info_log_file(LOGS_DIRECTORY);
 
     let info_layer = layer()
         .json()
@@ -27,7 +27,7 @@ pub fn init_logger() {
         .with_level(true)
         .with_filter(EnvFilter::from("INFO"));
 
-    let error_log_file = get_error_log_file();
+    let error_log_file = get_error_log_file(LOGS_DIRECTORY);
 
     let error_layer = layer()
         .json()
@@ -45,22 +45,18 @@ pub fn init_logger() {
     registry().with(info_layer).with(error_layer).with(debug_layer).init();
 }
 
-fn get_info_log_file() -> File {
-    get_log_file("info")
+fn get_info_log_file(dir: &str) -> File {
+    get_log_file(dir, "info")
 }
 
-fn get_error_log_file() -> File {
-    get_log_file("error")
+fn get_error_log_file(dir: &str) -> File {
+    get_log_file(dir, "error")
 }
 
-fn get_log_file(filename: &str) -> File {
-    File::options()
-        .write(true)
-        .read(true)
-        .append(true)
-        .create(true)
-        .open(format!("{LOGS_DIRECTORY}/{filename}.log"))
-        .unwrap()
+fn get_log_file(dir: &str, filename: &str) -> File {
+    let path = format!("{dir}/{filename}.log");
+
+    File::options().write(true).read(true).append(true).create(true).open(path).unwrap()
 }
 
 fn init_logs_directory(dir_path: &str) {
@@ -70,18 +66,37 @@ fn init_logs_directory(dir_path: &str) {
 #[cfg(test)]
 mod tests {
     use tempfile::{ TempDir, TempPath };
+
     use super::*;
 
     #[test]
     fn test_init_logs_directory() {
         let tmp_dir = TempDir::new().unwrap();
-        let mut tmp_path_str = String::from(tmp_dir.path().to_str().unwrap());
+        let tmp_path_str = String::from(tmp_dir.path().to_str().unwrap());
 
-        tmp_path_str.push_str("logs");
-        let path = TempPath::from_path(tmp_path_str);
+        let path = TempPath::from_path(format!("{tmp_path_str}/logs"));
 
         init_logs_directory(path.to_str().unwrap());
 
         assert!(path.is_dir());
+    }
+
+    #[test]
+    fn test_get_and_init_log_files() {
+        let tmp_log_dir = TempDir::new().unwrap();
+        init_logs_directory(tmp_log_dir.path().to_str().unwrap());
+
+        let tmp_dir_path = tmp_log_dir.path().to_str().unwrap();
+
+        let info_file = get_log_file(tmp_dir_path, "info");
+        let error_file = get_log_file(tmp_dir_path, "error");
+        assert!(info_file.metadata().unwrap().is_file());
+        assert!(error_file.metadata().unwrap().is_file());
+
+        let info_file = get_info_log_file(tmp_dir_path);
+        let error_file = get_error_log_file(tmp_dir_path);
+
+        assert!(info_file.metadata().unwrap().is_file());
+        assert!(error_file.metadata().unwrap().is_file());
     }
 }
