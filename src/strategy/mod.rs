@@ -1,14 +1,16 @@
-use config::{ Config, File };
-use serde::{ Deserialize, Serialize };
-use tracing::{ error, trace };
+use config::{Config, File};
+use serde::Deserialize;
+use tracing::{error, trace};
 
 use timeframe::StrategyTimeframe;
+
+use crate::api::ApiClientEnum;
 
 pub mod timeframe;
 
 const CONFIG_FILE_PATH: &str = "strategy.toml";
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct Strategy {
     pub symbol: String,
 
@@ -25,13 +27,12 @@ pub struct Strategy {
     pub measurement_deviation: MeasurementDeviation,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct Exchange {
-    // enum
-    pub api: String,
+    pub api: ApiClientEnum,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct RiskManagement {
     pub capital_per_trade: f32,
     pub max_positions: usize,
@@ -40,7 +41,7 @@ pub struct RiskManagement {
     pub profit_level: f32,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct MeasurementDeviation {
     pub enter_deviation: f32,
 }
@@ -95,8 +96,7 @@ mod tests {
 
     #[test]
     fn parse_valid_toml_strategy() {
-        let valid_toml_config =
-            r#"
+        let valid_toml_config = r#"
 symbol = "BTCUSDT"
 pair = "BTC/USDT"
 trading_symbol = "USDT"
@@ -125,7 +125,10 @@ enter_deviation = 0.1
         let temp_config_file = create_tmp_test_config(valid_toml_config);
         let path = temp_config_file.path().to_str().unwrap();
 
-        let config = Config::builder().add_source(File::with_name(path)).build().unwrap();
+        let config = Config::builder()
+            .add_source(File::with_name(path))
+            .build()
+            .unwrap();
 
         let strategy = config.try_deserialize::<Strategy>().unwrap();
 
@@ -135,7 +138,7 @@ enter_deviation = 0.1
         assert_eq!(&strategy.timeframe.interval, "1h");
         assert_eq!(strategy.timeframe.tick, Duration::from_secs(60 * 15));
 
-        assert_eq!(strategy.exchange.api, String::from("binance"));
+        assert_eq!(strategy.exchange.api, ApiClientEnum::BINANCE);
 
         assert_eq!(strategy.risk_management.capital_per_trade, 0.1);
         assert_eq!(strategy.risk_management.max_positions, 5);
@@ -148,8 +151,7 @@ enter_deviation = 0.1
 
     #[test]
     fn parse_invalid_toml_strategy() {
-        let invalid_toml_config =
-            r#"
+        let invalid_toml_config = r#"
 interval = "1"
 tick = "1"
 
@@ -165,7 +167,10 @@ profit_level = 0.15
         let temp_config_file = create_tmp_test_config(invalid_toml_config);
         let path = temp_config_file.path().to_str().unwrap();
 
-        let config = Config::builder().add_source(File::with_name(path)).build().unwrap();
+        let config = Config::builder()
+            .add_source(File::with_name(path))
+            .build()
+            .unwrap();
 
         let parsing_error = config.try_deserialize::<Strategy>();
 
@@ -174,8 +179,7 @@ profit_level = 0.15
 
     #[test]
     fn test_type_mismatch() {
-        let invalid_types_toml_config =
-            r#"
+        let invalid_types_toml_config = r#"
 symbol = "BTC"
 pair = "BTCUSDT"
 
@@ -199,7 +203,10 @@ enter_deviation = 0.01
         let temp_file = create_tmp_test_config(invalid_types_toml_config);
         let path = temp_file.path().to_str().unwrap();
 
-        let config = Config::builder().add_source(File::with_name(path)).build().unwrap();
+        let config = Config::builder()
+            .add_source(File::with_name(path))
+            .build()
+            .unwrap();
 
         let result = config.try_deserialize::<Strategy>();
         assert!(result.is_err());
@@ -207,7 +214,9 @@ enter_deviation = 0.01
 
     #[test]
     fn test_nonexistent_file() {
-        let config = Config::builder().add_source(File::with_name("nonexistent_file.toml")).build();
+        let config = Config::builder()
+            .add_source(File::with_name("nonexistent_file.toml"))
+            .build();
 
         assert!(config.is_err());
     }
@@ -220,12 +229,18 @@ enter_deviation = 0.01
         assert_eq!(strategy.trading_symbol, "USDT");
         assert_eq!(strategy.pair, "BTC/USDT");
 
-        assert_eq!(strategy.exchange.api, "binance");
+        assert_eq!(strategy.exchange.api, ApiClientEnum::BINANCE);
 
         assert_eq!(strategy.timeframe.interval, "2h");
         assert_eq!(strategy.timeframe.tick, Duration::from_secs(1800));
         assert_eq!(strategy.timeframe.period_measurement.measure_bars, 20);
-        assert_eq!(strategy.timeframe.period_measurement.mean_calculation_method, "SimpleMA");
+        assert_eq!(
+            strategy
+                .timeframe
+                .period_measurement
+                .mean_calculation_method,
+            "SimpleMA"
+        );
 
         assert_eq!(strategy.risk_management.capital_per_trade, 0.1);
         assert_eq!(strategy.risk_management.max_positions, 5);

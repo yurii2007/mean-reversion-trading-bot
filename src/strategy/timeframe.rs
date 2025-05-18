@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
-use serde::{ Deserialize, Serialize };
+use serde::Deserialize;
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize)]
 pub struct StrategyTimeframe {
     pub interval: String,
     #[serde(with = "humantime_serde")]
@@ -11,7 +11,7 @@ pub struct StrategyTimeframe {
     pub period_measurement: PeriodMeasurement,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct PeriodMeasurement {
     pub measure_bars: usize,
     // enum
@@ -40,8 +40,7 @@ mod tests {
 
     #[test]
     fn test_timeframe_deserializing() {
-        let toml_timeframe =
-            r#"
+        let toml_timeframe = r#"
             interval = "2h"
             tick = "30m"
 
@@ -54,14 +53,16 @@ mod tests {
         assert_eq!(timeframe.interval, "2h");
         assert_eq!(timeframe.tick, Duration::from_secs(60 * 30));
         assert_eq!(timeframe.period_measurement.measure_bars, 20);
-        assert_eq!(timeframe.period_measurement.mean_calculation_method, "SimpleMA");
+        assert_eq!(
+            timeframe.period_measurement.mean_calculation_method,
+            "SimpleMA"
+        );
     }
 
     #[test]
     #[should_panic]
     fn test_panic_invalid_toml() {
-        let toml_timeframe =
-            r#"
+        let toml_timeframe = r#"
         interval = "1"
         tick = "30m"
 

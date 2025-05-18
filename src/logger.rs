@@ -1,15 +1,14 @@
+use std::fs::{DirBuilder, File};
 use std::io::stdout;
 use std::sync::Mutex;
-use std::fs::{ DirBuilder, File };
 
 use tracing::Level;
 use tracing_subscriber::{
-    fmt::{ layer, time::UtcTime, writer::MakeWriterExt },
-    util::SubscriberInitExt,
+    fmt::{layer, time::UtcTime, writer::MakeWriterExt},
     layer::SubscriberExt,
     registry,
-    EnvFilter,
-    Layer,
+    util::SubscriberInitExt,
+    EnvFilter, Layer,
 };
 
 const LOGS_DIRECTORY: &str = "logs";
@@ -42,7 +41,11 @@ pub fn init_logger() {
         .with_writer(stdout.with_max_level(Level::DEBUG))
         .pretty();
 
-    registry().with(info_layer).with(error_layer).with(debug_layer).init();
+    registry()
+        .with(info_layer)
+        .with(error_layer)
+        .with(debug_layer)
+        .init();
 }
 
 fn get_info_log_file(dir: &str) -> File {
@@ -56,7 +59,13 @@ fn get_error_log_file(dir: &str) -> File {
 fn get_log_file(dir: &str, filename: &str) -> File {
     let path = format!("{dir}/{filename}.log");
 
-    File::options().write(true).read(true).append(true).create(true).open(path).unwrap()
+    File::options()
+        .write(true)
+        .read(true)
+        .append(true)
+        .create(true)
+        .open(path)
+        .unwrap()
 }
 
 fn init_logs_directory(dir_path: &str) {
@@ -65,7 +74,7 @@ fn init_logs_directory(dir_path: &str) {
 
 #[cfg(test)]
 mod tests {
-    use tempfile::{ TempDir, TempPath };
+    use tempfile::{TempDir, TempPath};
 
     use super::*;
 
