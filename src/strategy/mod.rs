@@ -138,7 +138,7 @@ enter_deviation = 0.1
         assert_eq!(&strategy.timeframe.interval, "1h");
         assert_eq!(strategy.timeframe.tick, Duration::from_secs(60 * 15));
 
-        assert_eq!(strategy.exchange.api, ApiClientEnum::BINANCE);
+        assert_eq!(strategy.exchange.api, ApiClientEnum::Binance);
 
         assert_eq!(strategy.risk_management.capital_per_trade, 0.1);
         assert_eq!(strategy.risk_management.max_positions, 5);
@@ -229,7 +229,7 @@ enter_deviation = 0.01
         assert_eq!(strategy.trading_symbol, "USDT");
         assert_eq!(strategy.pair, "BTC/USDT");
 
-        assert_eq!(strategy.exchange.api, ApiClientEnum::BINANCE);
+        assert_eq!(strategy.exchange.api, ApiClientEnum::Binance);
 
         assert_eq!(strategy.timeframe.interval, "2h");
         assert_eq!(strategy.timeframe.tick, Duration::from_secs(1800));

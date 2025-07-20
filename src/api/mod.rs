@@ -4,17 +4,23 @@ use serde::Deserialize;
 use crate::client::ApiClient;
 
 mod binance;
+pub mod message;
 
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ApiClientEnum {
-    BINANCE,
+    Binance,
 }
 
-pub fn init_client(client: &ApiClientEnum) -> impl ApiClient {
-    match client {
-        ApiClientEnum::BINANCE => BinanceClient::new(),
-    }
+pub fn get_client(
+    client: &ApiClientEnum,
+    // internal_rx: UnboundedReceiver<ClientMessage>,
+) -> impl ApiClient {
+    let api_client = match client {
+        ApiClientEnum::Binance => BinanceClient::new(),
+    };
+
+    api_client
 }
 
 #[cfg(test)]
@@ -23,22 +29,13 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test]
-    async fn test_init_client() {
-        let client_type = ApiClientEnum::BINANCE;
-
-        let client = init_client(&client_type);
-
-        client.connect().await
-    }
-
     #[test]
     fn test_deserialize_client() {
         let client_string = r#""binance""#;
 
         let client_type: ApiClientEnum = serde_json::from_str(client_string).unwrap();
 
-        assert_eq!(client_type, ApiClientEnum::BINANCE);
+        assert_eq!(client_type, ApiClientEnum::Binance);
 
         let client_string = "bin";
 

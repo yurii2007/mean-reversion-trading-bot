@@ -1,7 +1,9 @@
-use client::Client;
 use strategy::Strategy;
 
+use crate::bot::Bot;
+
 mod api;
+mod bot;
 mod client;
 mod logger;
 mod strategy;
@@ -11,8 +13,9 @@ async fn main() -> Result<(), String> {
     logger::init_logger();
 
     let strategy = Strategy::new();
-    let client = Client::new(&strategy.exchange.api);
 
-    client.connect().await;
+    let bot = Bot::try_init(strategy).expect("Failed to initialize bot");
+    bot.run().await.unwrap();
+
     Ok(())
 }

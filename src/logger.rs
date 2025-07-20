@@ -60,7 +60,6 @@ fn get_log_file(dir: &str, filename: &str) -> File {
     let path = format!("{dir}/{filename}.log");
 
     File::options()
-        .write(true)
         .read(true)
         .append(true)
         .create(true)
