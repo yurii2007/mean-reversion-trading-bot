@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use tokio::sync::mpsc::unbounded_channel;
 use tracing::info;
 
@@ -9,6 +11,8 @@ use crate::{
     client::{error::ClientError, ApiClient},
     strategy::Strategy,
 };
+
+mod kline_processor;
 
 pub struct Bot {
     client: Box<dyn ApiClient>,
@@ -31,8 +35,11 @@ impl Bot {
             .client
             .connect(api_tx, client_tx.clone(), client_rx)
             .await?;
-        let message = ClientMessage::AvgPrice(String::from("BTCUSDT"));
-        let _ = client_tx.send(message);
+
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        // let message = ClientMessage::AvgPrice(String::from("BTCUSDT"));
+        // let _ = client_tx.send(message);
 
         let api_signal_handler_task = tokio::spawn(async move {
             while let Some(message) = api_rx.recv().await {

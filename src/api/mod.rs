@@ -4,6 +4,7 @@ use serde::Deserialize;
 use crate::client::ApiClient;
 
 mod binance;
+pub mod error;
 pub mod message;
 
 #[derive(Debug, PartialEq, Deserialize)]
@@ -12,15 +13,10 @@ pub enum ApiClientEnum {
     Binance,
 }
 
-pub fn get_client(
-    client: &ApiClientEnum,
-    // internal_rx: UnboundedReceiver<ClientMessage>,
-) -> impl ApiClient {
-    let api_client = match client {
+pub fn get_client(client: &ApiClientEnum) -> impl ApiClient {
+    match client {
         ApiClientEnum::Binance => BinanceClient::new(),
-    };
-
-    api_client
+    }
 }
 
 #[cfg(test)]

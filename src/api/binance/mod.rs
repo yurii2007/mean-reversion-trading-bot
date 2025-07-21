@@ -9,13 +9,14 @@ use tracing::{debug, error, info};
 
 use crate::{
     api::{
-        binance::binance_request::{AveragePriceRequest, BinanceRequest},
+        binance::binance_request::{AveragePriceRequest, BinanceRequest, StreamSubscribeRequest},
         message::{ApiClientMessage, ClientMessage},
     },
     client::{error::ClientError, ApiClient},
 };
 
 mod binance_request;
+mod binance_response;
 
 #[derive(Debug)]
 pub struct BinanceClient {}
@@ -37,7 +38,10 @@ impl ApiClient for BinanceClient {
         mut request_rx: UnboundedReceiver<ClientMessage>,
     ) -> Result<(JoinHandle<()>, JoinHandle<()>), ClientError> {
         let ws_url =
-            dotenv::var("BINANCE_WS_URL").expect("Failed to read BINANCE_WS_URL env variable");
+            // dotenv::var("BINANCE_WS_URL").expect("Failed to read BINANCE_WS_URL env variable");
+            dotenv::var("BINANCE_WS_STREAM_URL").expect("Failed to read BINANCE_WS_STREAM_URL env variable");
+
+        debug!("Trying to connect to the url: {}", ws_url);
 
         let (ws_stream, _) = match connect_async(&ws_url).await {
             Ok(connection) => connection,
@@ -53,7 +57,18 @@ impl ApiClient for BinanceClient {
         let (mut write, mut read) = ws_stream.split();
 
         let write_task = tokio::spawn(async move {
+            info!("Subscribing to the btcusdt kline stream");
+            let subscribe_request =
+                StreamSubscribeRequest::new(vec![String::from("btcusdt@kline_4h")]);
+
+            if let Ok(json) = serde_json::to_string(&subscribe_request) {
+                if let Err(e) = write.send(Message::Text(json.into())).await {
+                    error!("Failed to send subscribe request: {}", e);
+                }
+            }
+
             info!("Starting listening internal signal handler");
+
             while let Some(msg) = request_rx.recv().await {
                 match msg {
                     ClientMessage::AvgPrice(symbol) => {
