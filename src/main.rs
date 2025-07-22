@@ -4,7 +4,6 @@ use crate::bot::Bot;
 
 mod api;
 mod bot;
-mod client;
 mod logger;
 mod strategy;
 

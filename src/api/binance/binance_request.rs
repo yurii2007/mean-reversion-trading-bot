@@ -2,23 +2,6 @@ use serde::Serialize;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize)]
-pub struct StreamSubscribeRequest {
-    pub method: String,
-    pub params: Vec<String>,
-    pub id: Uuid,
-}
-
-impl StreamSubscribeRequest {
-    pub fn new(params: Vec<String>) -> Self {
-        Self {
-            method: String::from("SUBSCRIBE"),
-            params,
-            id: Uuid::new_v4(),
-        }
-    }
-}
-
-#[derive(Debug, Serialize)]
 pub struct BinanceRequest<T: Serialize> {
     id: Uuid,
     method: String,

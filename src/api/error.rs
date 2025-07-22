@@ -2,6 +2,7 @@ use std::{error::Error, fmt::Display};
 
 #[derive(Debug)]
 pub enum ApiError {
+    ConnectionError(String),
     ParseError(String),
     NetworkError(String),
     MarketError(String),
@@ -15,6 +16,7 @@ impl Error for ApiError {}
 impl Display for ApiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ApiError::ConnectionError(reason) => write!(f, "Failed to connect: {reason}"),
             ApiError::ParseError(reason) => write!(f, "Failed to parse: {reason}"),
             ApiError::NetworkError(reason) => write!(f, "Failed to fetch: {reason}"),
             ApiError::MarketError(reason) => write!(f, "Market error: {reason}"),

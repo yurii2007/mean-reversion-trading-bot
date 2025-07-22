@@ -1,9 +1,17 @@
 use std::borrow::Cow;
 
 use serde::{de::Visitor, Deserialize, Deserializer};
+use serde_json::value::RawValue;
 use time::UtcDateTime;
 
 use crate::api::error::ApiError;
+
+#[derive(Debug, Deserialize)]
+pub struct BinanceStreamResponse<'a> {
+    pub stream: String,
+    #[serde(borrow)]
+    pub data: &'a RawValue,
+}
 
 #[derive(Debug)]
 pub struct BinanceKlineResponse {

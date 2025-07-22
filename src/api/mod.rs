@@ -1,22 +1,15 @@
-use binance::BinanceClient;
 use serde::Deserialize;
 
-use crate::client::ApiClient;
-
-mod binance;
+pub mod binance;
 pub mod error;
 pub mod message;
+
+pub use error::*;
 
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ApiClientEnum {
     Binance,
-}
-
-pub fn get_client(client: &ApiClientEnum) -> impl ApiClient {
-    match client {
-        ApiClientEnum::Binance => BinanceClient::new(),
-    }
 }
 
 #[cfg(test)]
