@@ -12,8 +12,8 @@ use tracing::{debug, error, info};
 
 use crate::api::{
     binance::{
-        binance_request::BinanceStream,
-        binance_response::{BinanceKlinePayload, BinanceStreamResponse},
+        binance_request::stream::BinanceStream,
+        binance_response::stream::{BinanceKlinePayload, BinanceStreamResponse},
     },
     error::ApiError,
     message::{ApiClientMessage, ClientMessage},

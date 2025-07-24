@@ -58,13 +58,13 @@ impl From<&BinanceStream> for String {
 }
 
 #[derive(Debug, Serialize)]
-pub struct BinanceRequest<T: Serialize> {
+pub struct BinanceStreamRequest<T: Serialize> {
     id: Uuid,
     method: String,
     params: Option<T>,
 }
 
-impl<T: Serialize> BinanceRequest<T> {
+impl<T: Serialize> BinanceStreamRequest<T> {
     pub fn new(method: String, params: Option<T>) -> Self {
         Self {
             id: Uuid::new_v4(),

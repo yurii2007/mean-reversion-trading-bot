@@ -1,11 +1,11 @@
 use std::time::Duration;
 
 use tokio::sync::mpsc::unbounded_channel;
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::{
     api::{
-        binance::{binance_request::BinanceStream, BinanceClient},
+        binance::{binance_request::stream::BinanceStream, BinanceClient},
         message::{ApiClientMessage, ClientMessage},
         ApiError,
     },
@@ -42,7 +42,7 @@ impl Bot {
 
         let api_signal_handler_task = tokio::spawn(async move {
             while let Some(message) = api_rx.recv().await {
-                info!("Received message from API: {:?}", message);
+                debug!("Received message from API: {:?}", message);
                 match message {
                     ApiClientMessage::Candle(candle) => {
                         info!("Received new candle data: {:?}", candle);
