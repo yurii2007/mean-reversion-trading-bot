@@ -10,16 +10,13 @@ use tokio::{
 use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use tracing::{debug, error, info};
 
-use crate::{
-    api::{
-        binance::{
-            binance_request::{AveragePriceRequest, BinanceRequest},
-            binance_response::BinanceStreamResponse,
-        },
-        error::ApiError,
-        message::{ApiClientMessage, ClientMessage},
+use crate::api::{
+    binance::{
+        binance_request::BinanceStream,
+        binance_response::{BinanceKlinePayload, BinanceStreamResponse},
     },
-    strategy::Strategy,
+    error::ApiError,
+    message::{ApiClientMessage, ClientMessage},
 };
 
 pub mod binance_request;
@@ -43,11 +40,12 @@ impl BinanceClient {
 }
 
 impl BinanceClient {
-    pub async fn subscribe(&mut self, streams: Vec<String>) -> Result<(), ApiError> {
+    pub async fn subscribe(&mut self, streams: Vec<BinanceStream>) -> Result<(), ApiError> {
         let ws_base_url =
             dotenv::var("BINANCE_WS_URL").expect("Failed to read BINANCE_WS_URL from .env");
 
-        let ws_stream_url = BinanceClient::get_subscribe_url(ws_base_url, streams);
+        let ws_stream_url = BinanceClient::get_subscribe_url(ws_base_url, &streams);
+
         debug!("Trying to connect to the url: {}", ws_stream_url);
 
         let (ws_stream, _) = match connect_async(&ws_stream_url).await {
@@ -98,12 +96,17 @@ impl BinanceClient {
                                 serde_json::from_str::<BinanceStreamResponse>(text.as_str());
                             match raw_response {
                                 Ok(response) => {
-                                    info!("Deserialized value: {:?}", response);
+                                    debug!("Deserialized raw response: {:?}", response);
+
+                                    if let Err(e) = BinanceClient::send_response(response, &api_tx)
+                                    {
+                                        error!("Failed to send message: {}", e);
+                                    }
                                 }
                                 Err(e) => error!("Failed to deserialized response: {}", e),
                             }
                         }
-                        Message::Binary(bytes) => {
+                        Message::Binary(_bytes) => {
                             info!("received binary message, ");
                         }
                         Message::Ping(bytes) => {
@@ -117,13 +120,13 @@ impl BinanceClient {
                                 }
                             }
                         }
-                        Message::Pong(bytes) => {
+                        Message::Pong(_bytes) => {
                             info!("REceived pong");
                         }
-                        Message::Close(frame) => {
+                        Message::Close(_frame) => {
                             info!("recevied close ");
                         }
-                        Message::Frame(frame) => {
+                        Message::Frame(_frame) => {
                             info!("recevied frame ");
                         }
                     },
@@ -139,17 +142,6 @@ impl BinanceClient {
 
             while let Some(msg) = client_rx.recv().await {
                 match msg {
-                    ClientMessage::AvgPrice(symbol) => {
-                        info!("Sending Request Message for average price for {}", symbol);
-                        let request: BinanceRequest<AveragePriceRequest> =
-                            AveragePriceRequest::new(symbol).into();
-
-                        if let Ok(json) = serde_json::to_string(&request) {
-                            if let Err(e) = write_stream.send(Message::Text(json.into())).await {
-                                error!("Failed to send pong back: {}", e);
-                            };
-                        }
-                    }
                     ClientMessage::Pong(payload) => {
                         debug!("Sending pong frame");
                         if let Err(e) = write_stream.send(Message::Pong(payload)).await {
@@ -163,21 +155,32 @@ impl BinanceClient {
         Ok((read_task, write_task))
     }
 
-    fn get_subscribe_url(base_url: String, streams: Vec<String>) -> String {
+    fn get_subscribe_url(base_url: String, streams: &[BinanceStream]) -> String {
         let mut url = format!("{base_url}/stream?streams=");
 
-        url.push_str(streams.join("/").as_str());
+        let stream_signatures: Vec<String> = streams.iter().map(|s| s.into()).collect();
+
+        url.push_str(stream_signatures.join("/").as_str());
 
         url
     }
-}
 
-pub fn get_binance_streams(strategy: &Strategy) -> Vec<String> {
-    let kline_stream = format!(
-        "{}@kline_{}",
-        strategy.symbol.to_lowercase(),
-        strategy.timeframe.interval
-    );
+    fn send_response(
+        raw_response: BinanceStreamResponse<'_>,
+        api_tx: &UnboundedSender<ApiClientMessage>,
+    ) -> Result<(), ApiError> {
+        match raw_response.stream {
+            BinanceStream::KlineStream(_) => {
+                let binance_raw_kline =
+                    serde_json::from_str::<'_, BinanceKlinePayload>(raw_response.data.get())?;
 
-    vec![kline_stream]
+                if let Err(e) = api_tx.send(ApiClientMessage::Candle(binance_raw_kline.into())) {
+                    error!("Failed to send candle data: {}", e);
+                    return Err(ApiError::SendError(e.to_string()));
+                }
+            }
+        }
+
+        Ok(())
+    }
 }

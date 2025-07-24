@@ -1,7 +1,9 @@
+use time::UtcDateTime;
+
 #[derive(Debug)]
 pub struct Candle {
-    pub open_timestamp: u64,
-    pub close_timestamp: u64,
+    pub open_timestamp: UtcDateTime,
+    pub close_timestamp: UtcDateTime,
     pub open_price: f64,
     pub high_price: f64,
     pub low_price: f64,

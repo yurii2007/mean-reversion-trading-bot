@@ -9,6 +9,7 @@ pub enum ApiError {
     OrderError(String),
     ValidationError(String),
     NotFound(String),
+    SendError(String),
 }
 
 impl Error for ApiError {}
@@ -23,6 +24,7 @@ impl Display for ApiError {
             ApiError::OrderError(reason) => write!(f, "Order error: {reason}"),
             ApiError::ValidationError(reason) => write!(f, "Invalid input: {reason}"),
             ApiError::NotFound(reason) => write!(f, "Not found: {reason}"),
+            ApiError::SendError(reason) => write!(f, "Failed to send message: {reason}"),
         }
     }
 }
