@@ -1,9 +1,9 @@
-use std::{fmt::Debug, time::Duration};
+use std::fmt::Debug;
 
 use binance_spot_connector_rust::market::klines::KlineInterval;
-use serde::{de::Visitor, Deserialize, Deserializer, Serializer};
+use serde::{de::Visitor, Deserialize, Deserializer};
 
-use crate::api::ApiError;
+use crate::{api::ApiError, strategy::ma_tracker::MeanCalculationMethod};
 
 #[derive(Deserialize)]
 pub struct StrategyTimeframe {
@@ -22,7 +22,7 @@ pub struct StrategyTimeframe {
 pub struct PeriodMeasurement {
     pub measure_bars: usize,
     // enum
-    pub mean_calculation_method: String,
+    pub mean_calculation_method: MeanCalculationMethod,
 }
 
 impl Debug for StrategyTimeframe {
@@ -61,13 +61,6 @@ where
     deserializer.deserialize_str(StrVisitor)
 }
 
-fn serialize_kline_interval<S>(val: &KlineInterval, s: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    s.serialize_str(&val.to_string())
-}
-
 fn map_string_to_kline(str: &str) -> Result<KlineInterval, ApiError> {
     match str {
         "1m" => Ok(KlineInterval::Minutes1),
@@ -86,47 +79,6 @@ fn map_string_to_kline(str: &str) -> Result<KlineInterval, ApiError> {
         "1w" => Ok(KlineInterval::Weeks1),
         "1M" => Ok(KlineInterval::Months1),
         _ => Err(ApiError::ParseError("Invalid interval".to_string())),
-    }
-}
-
-pub fn duration_from_kline_interval(interval: &KlineInterval) -> std::time::Duration {
-    match interval {
-        KlineInterval::Minutes1 => std::time::Duration::from_secs(60),
-        KlineInterval::Minutes3 => std::time::Duration::from_secs(180),
-        KlineInterval::Minutes5 => std::time::Duration::from_secs(300),
-        KlineInterval::Minutes15 => std::time::Duration::from_secs(900),
-        KlineInterval::Minutes30 => std::time::Duration::from_secs(1_800),
-        KlineInterval::Hours1 => std::time::Duration::from_secs(3_600),
-        KlineInterval::Hours2 => std::time::Duration::from_secs(7_200),
-        KlineInterval::Hours4 => std::time::Duration::from_secs(14_400),
-        KlineInterval::Hours6 => std::time::Duration::from_secs(21_600),
-        KlineInterval::Hours8 => std::time::Duration::from_secs(28_800),
-        KlineInterval::Hours12 => std::time::Duration::from_secs(43_200),
-        KlineInterval::Days1 => std::time::Duration::from_secs(86_400),
-        KlineInterval::Days3 => std::time::Duration::from_secs(259_200),
-        KlineInterval::Weeks1 => std::time::Duration::from_secs(604_800),
-        KlineInterval::Months1 => std::time::Duration::from_secs(2_419_200),
-    }
-}
-
-pub fn duration_into_kline_interval(duration: &Duration) -> Option<KlineInterval> {
-    match duration.as_secs() {
-        60 => Some(KlineInterval::Minutes1),
-        180 => Some(KlineInterval::Minutes3),
-        300 => Some(KlineInterval::Minutes5),
-        900 => Some(KlineInterval::Minutes15),
-        1_800 => Some(KlineInterval::Minutes30),
-        3_600 => Some(KlineInterval::Hours1),
-        7_200 => Some(KlineInterval::Hours2),
-        14_400 => Some(KlineInterval::Hours4),
-        21_600 => Some(KlineInterval::Hours6),
-        28_800 => Some(KlineInterval::Hours8),
-        43_200 => Some(KlineInterval::Hours12),
-        86_400 => Some(KlineInterval::Days1),
-        259_200 => Some(KlineInterval::Days3),
-        604_800 => Some(KlineInterval::Weeks1),
-        2_419_200 => Some(KlineInterval::Months1),
-        _ => None,
     }
 }
 
@@ -155,7 +107,7 @@ mod tests {
         assert_eq!(timeframe.period_measurement.measure_bars, 20);
         assert_eq!(
             timeframe.period_measurement.mean_calculation_method,
-            "SimpleMA"
+            MeanCalculationMethod::SimpleMA
         );
     }
 
@@ -177,7 +129,7 @@ mod tests {
     #[test]
     fn test_valid_debug() {
         let period_measurement = PeriodMeasurement {
-            mean_calculation_method: String::from("SimpleMA"),
+            mean_calculation_method: MeanCalculationMethod::SimpleMA,
             measure_bars: 20,
         };
         let strategy_timeframe = StrategyTimeframe {
@@ -188,7 +140,7 @@ mod tests {
 
         let strategy_str = format!("{:?}", strategy_timeframe);
         let expected_str = String::from(
-            "StrategyTimeframe {interval: \"1h\", tick: 1800s, period_measurement: PeriodMeasurement { measure_bars: 20, mean_calculation_method: \"SimpleMA\" }}"
+            "StrategyTimeframe {interval: \"1h\", tick: 1800s, period_measurement: PeriodMeasurement { measure_bars: 20, mean_calculation_method: SimpleMA }}"
         );
 
         assert_eq!(strategy_str, expected_str)

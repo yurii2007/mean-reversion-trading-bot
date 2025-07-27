@@ -1,7 +1,10 @@
-use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::Deserialize;
 use time::UtcDateTime;
 
-use crate::bot::kline_processor::Candle;
+use crate::{
+    api::binance::binance_response::{deserialize_float, deserialize_timestamp},
+    bot::kline_processor::Candle,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct BinanceKlinePayload {
@@ -68,54 +71,6 @@ impl From<BinanceKlineRawResponse> for Candle {
             close_price,
         }
     }
-}
-
-fn deserialize_timestamp<'de, D>(deserializer: D) -> Result<UtcDateTime, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    struct TimestampVisitor;
-
-    impl Visitor<'_> for TimestampVisitor {
-        type Value = UtcDateTime;
-
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("Expected valid timestamp for UtcDateTime")
-        }
-
-        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            UtcDateTime::from_unix_timestamp_nanos(i128::from(v) * 1_000_000).map_err(E::custom)
-        }
-    }
-
-    deserializer.deserialize_u64(TimestampVisitor)
-}
-
-fn deserialize_float<'de, D>(deserializer: D) -> Result<f64, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    struct FloatVisitor;
-
-    impl Visitor<'_> for FloatVisitor {
-        type Value = f64;
-
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter.write_str("Expected valid float number")
-        }
-
-        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            v.parse().map_err(E::custom)
-        }
-    }
-
-    deserializer.deserialize_str(FloatVisitor)
 }
 
 // {

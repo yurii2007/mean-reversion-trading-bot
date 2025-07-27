@@ -9,9 +9,3 @@ pub struct Candle {
     pub low_price: f64,
     pub close_price: f64,
 }
-
-#[derive(Debug)]
-pub struct KlineProcessor {
-    candles_count: u64,
-    current_ma: f64,
-}

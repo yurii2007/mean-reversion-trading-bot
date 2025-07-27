@@ -6,6 +6,7 @@ use timeframe::StrategyTimeframe;
 
 use crate::api::ApiClientEnum;
 
+pub mod ma_tracker;
 pub mod timeframe;
 
 const CONFIG_FILE_PATH: &str = "strategy.toml";
@@ -85,6 +86,8 @@ mod tests {
     use std::time::Duration;
 
     use tempfile::NamedTempFile;
+
+    use crate::strategy::ma_tracker::MeanCalculationMethod;
 
     use super::*;
 
@@ -239,7 +242,7 @@ enter_deviation = 0.01
                 .timeframe
                 .period_measurement
                 .mean_calculation_method,
-            "SimpleMA"
+            MeanCalculationMethod::SimpleMA
         );
 
         assert_eq!(strategy.risk_management.capital_per_trade, 0.1);

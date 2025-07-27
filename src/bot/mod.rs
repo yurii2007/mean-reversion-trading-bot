@@ -5,11 +5,17 @@ use tracing::{debug, info};
 
 use crate::{
     api::{
-        binance::{binance_request::stream::BinanceStream, BinanceClient},
+        binance::{
+            binance_request::{rest_api::BinanceRestApi, stream::BinanceStream},
+            BinanceClient,
+        },
         message::{ApiClientMessage, ClientMessage},
         ApiError,
     },
-    strategy::Strategy,
+    strategy::{
+        ma_tracker::{get_ma_tracker, MaTracker},
+        Strategy,
+    },
 };
 
 pub mod kline_processor;
@@ -17,13 +23,24 @@ pub mod kline_processor;
 pub struct Bot {
     client: BinanceClient,
     strategy: Strategy,
+    ma_tracker: Box<dyn MaTracker + Send>,
 }
 
 impl Bot {
     pub fn try_init(strategy: Strategy) -> Result<Self, ApiError> {
         let client = BinanceClient::new();
+        let ma_tracker = get_ma_tracker(
+            &strategy
+                .timeframe
+                .period_measurement
+                .mean_calculation_method,
+        );
 
-        Ok(Self { client, strategy })
+        Ok(Self {
+            client,
+            strategy,
+            ma_tracker,
+        })
     }
 
     pub async fn run(mut self) -> Result<(), ApiError> {
@@ -31,6 +48,9 @@ impl Bot {
         let (api_tx, mut api_rx) = unbounded_channel::<ApiClientMessage>();
         let (client_tx, client_rx) = unbounded_channel::<ClientMessage>();
         let streams = BinanceStream::get_stream_signatures(&self.strategy);
+
+        let initial_candles_data = BinanceRestApi::get_kline_data(&self.strategy).await?;
+        debug!("received initial candle data: {:?}", initial_candles_data);
 
         self.client.subscribe(streams).await?;
         let (api_read_task, api_write_task) = self
@@ -45,6 +65,8 @@ impl Bot {
                 debug!("Received message from API: {:?}", message);
                 match message {
                     ApiClientMessage::Candle(candle) => {
+                        self.ma_tracker.update(&candle);
+
                         info!("Received new candle data: {:?}", candle);
                     }
                 }
